@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тестовая страница виджета</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 40px;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .card {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Тестовый Цифровой Магазин</h1>
+    <p>Это внешняя HTML-страница стороннего сайта клиента для проверки автономной работы встраиваемого скрипта widget.js.</p>
+  </div>
+
+  <!-- Embed Widget Script -->
+  <script src="/widget.js" data-bot-id="demo-bot-123" defer></script>
+</body>
+</html>
