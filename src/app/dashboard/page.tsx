@@ -40,7 +40,14 @@ import {
   X,
   Headphones,
   Sliders,
-  FolderPlus
+  FolderPlus,
+  Search,
+  Activity,
+  BarChart3,
+  Lock,
+  Cpu,
+  Zap,
+  Crown
 } from 'lucide-react';
 import { generateEmbedScript } from '@/lib/utils';
 import { getAIResponse } from '@/lib/gemini';
@@ -53,7 +60,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'billing' | 'overview'>('bot_settings');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'analytics' | 'billing' | 'security'>('overview');
   const [platformTab, setPlatformTab] = useState<'tilda' | 'wordpress' | 'shopify' | 'html'>('tilda');
 
   // Multi-Project Management State
@@ -90,7 +97,9 @@ export default function DashboardPage() {
     isPremium: false,
     plan: 'Starter',
     usageCount: 0,
-    maxFreeLimit: 30,
+    dailyUsageCount: 0,
+    maxDailyLimit: 30,
+    lastResetDate: '',
   });
 
   const [newQuestion, setNewQuestion] = useState('');
@@ -211,7 +220,7 @@ export default function DashboardPage() {
     const nextLang = lang === 'ru' ? 'en' : 'ru';
     setLang(nextLang);
     setLanguage(nextLang);
-    showToast(nextLang === 'ru' ? 'Язык изменен на Русский' : 'Language changed to English');
+    showToast(nextLang === 'ru' ? 'Язык переключен на Русский' : 'Language switched to English');
   };
 
   // Toggle Theme (Dark <-> Light)
@@ -299,8 +308,8 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white ${
-      themeMode === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
+    <div className={`w-screen h-screen flex overflow-hidden font-sans selection:bg-blue-600 selection:text-white ${
+      themeMode === 'dark' ? 'bg-[#09090b] text-slate-100' : 'bg-slate-100 text-slate-900'
     }`}>
       
       {/* Toast Notification Container */}
@@ -311,297 +320,386 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Top Header */}
-      <header className={`px-6 py-3.5 flex items-center justify-between sticky top-0 z-40 border-b ${
-        themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+      {/* FULL-HEIGHT LEFT SIDEBAR (VERCEL & CHATGPT STYLE) */}
+      <aside className={`w-64 border-r flex flex-col justify-between shrink-0 h-screen select-none ${
+        themeMode === 'dark' ? 'bg-[#09090b] border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
       }`}>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors text-xs font-semibold"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>На главную</span>
-          </Link>
-          <div className="h-5 w-px bg-slate-800"></div>
-          <h1 className="sr-only">Панель управления ИИ-Бота</h1>
+        
+        {/* Top Vercel Project Switcher Header */}
+        <div className="p-3.5 border-b border-zinc-800/80 space-y-3">
           
-          {/* Active Project Dropdown & Multi-Project Switcher */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.selectProject}:</span>
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
+                <Bot className="w-4 h-4" />
+              </div>
+              <span className="font-extrabold text-sm text-white tracking-tight">ChatPulse</span>
+            </Link>
+            <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20">
+              {sub.plan}
+            </span>
+          </div>
+
+          {/* Project Dropdown Selector */}
+          <div className="relative">
             <select
               value={activeProject?.id || ''}
               onChange={(e) => handleSelectProject(e.target.value)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-xl border focus:outline-none ${
+              className={`w-full text-xs font-bold px-3 py-2 rounded-xl border focus:outline-none appearance-none cursor-pointer ${
                 themeMode === 'dark'
-                  ? 'bg-slate-800 border-slate-700 text-white'
+                  ? 'bg-zinc-900 border-zinc-800 text-white hover:border-zinc-700'
                   : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}
             >
               {projects.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.botId})
+                  📁 {p.name} ({p.botId})
                 </option>
               ))}
             </select>
-
-            <button
-              onClick={() => setIsAddProjectModalOpen(true)}
-              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-all"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t.addProject}</span>
-            </button>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
           </div>
+
+          {/* Quick Add Project Button */}
+          <button
+            onClick={() => setIsAddProjectModalOpen(true)}
+            className="w-full py-1.5 px-3 bg-zinc-800/70 hover:bg-zinc-800 text-slate-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-700/50"
+          >
+            <Plus className="w-3.5 h-3.5 text-blue-400" />
+            <span>{t.addProject}</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/billing"
-            className="px-3.5 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-500/30 hover:bg-blue-600/20 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all"
+        {/* Full Menu Navigation Sections */}
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 scrollbar-thin">
+          
+          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Разделы системы</div>
+
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'overview'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
           >
-            <CreditCard className="w-4 h-4 text-blue-500" />
-            <span>{sub.isPremium ? 'Pro Business' : 'Free (Starter)'}</span>
-          </Link>
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Обзор дашборда</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('bot_settings')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'bot_settings'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Palette className="w-4 h-4" />
+            <span>{t.botSettingsTab}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('knowledge')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'knowledge'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>{t.knowledgeTab}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('operator')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'operator'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Headphones className="w-4 h-4" />
+            <span>{t.operatorTab}</span>
+          </button>
 
           <button
             onClick={() => setActiveTab('embed')}
-            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'embed'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
           >
             <Code2 className="w-4 h-4" />
-            <span>Код виджета</span>
+            <span>Connect & Код</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'analytics'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Аналитика & Метрики</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'billing'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <CreditCard className="w-4 h-4 text-emerald-400" />
+            <span>{t.billingTab}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'security'
+                ? 'bg-blue-600 text-white shadow-md'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-purple-400" />
+            <span>Безопасность ИИ</span>
+          </button>
+
         </div>
-      </header>
 
-      {/* Main Content Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6 relative">
-        
-        {/* Left Sidebar (ChatGPT Style Dark Card with Bottom Profile) */}
-        <aside className={`w-64 rounded-2xl border p-3 flex flex-col justify-between shrink-0 hidden md:flex ${
-          themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-        }`}>
+        {/* CHATGPT-STYLE BOTTOM-LEFT USER PROFILE CARD (EXACT MATCH TO USER SCREENSHOT 1) */}
+        <div className="p-3 border-t border-zinc-800/80 relative">
           
-          <div className="space-y-1">
-            <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              {activeProject?.name || 'Разделы'}
+          <div
+            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+            className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-2 flex items-center justify-between cursor-pointer transition-all shadow-md group"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                МЕ
+              </div>
+              <div className="flex flex-col min-w-0 text-left">
+                <span className="font-bold text-xs text-white truncate group-hover:text-blue-400 transition-colors">
+                  {userName}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {sub.isPremium ? `${sub.plan} Plan` : 'Free'}
+                </span>
+              </div>
             </div>
-            
-            <button
-              onClick={() => setActiveTab('bot_settings')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'bot_settings'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Palette className="w-4 h-4" />
-              <span>{t.botSettingsTab}</span>
-            </button>
 
-            <button
-              onClick={() => setActiveTab('knowledge')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'knowledge'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>{t.knowledgeTab}</span>
-            </button>
+            {!sub.isPremium && (
+              <Link
+                href="/dashboard/billing"
+                onClick={(e) => e.stopPropagation()}
+                className="px-2.5 py-1 bg-zinc-800 hover:bg-blue-600 text-white text-[11px] font-bold rounded-xl transition-all border border-zinc-700 hover:border-blue-500 shrink-0"
+              >
+                {t.upgradeBtn}
+              </Link>
+            )}
+          </div>
 
-            <button
-              onClick={() => setActiveTab('operator')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'operator'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Headphones className="w-4 h-4" />
-              <span>{t.operatorTab}</span>
-            </button>
+          {/* CHATGPT-STYLE POPUP MENU (MATCHING SCREENSHOT 1) */}
+          {isProfileMenuOpen && (
+            <div className="absolute bottom-16 left-3 w-60 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-slate-200 text-xs font-medium space-y-1">
+              
+              {/* Menu User Header */}
+              <div className="px-3 py-2 flex items-center justify-between border-b border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                    МЕ
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-xs">{userName}</div>
+                    <div className="text-[10px] text-slate-400">{sub.plan} Plan</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </div>
 
-            <button
-              onClick={() => setActiveTab('embed')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'embed'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Code2 className="w-4 h-4" />
-              <span>{t.embedTab}</span>
-            </button>
+              {/* Menu Item 1: Изменить план */}
+              <Link
+                href="/dashboard/billing"
+                onClick={() => setIsProfileMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>{t.changePlan}</span>
+              </Link>
+
+              {/* Menu Item 2: Персонализация */}
+              <button
+                onClick={handleToggleTheme}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
+              >
+                {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+                <span>{t.personalization} ({themeMode === 'dark' ? 'Тёмная' : 'Светлая'})</span>
+              </button>
+
+              {/* Menu Item 3: Профиль */}
+              <button
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  setIsProfileModalOpen(true);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
+              >
+                <UserIcon className="w-4 h-4 text-blue-400" />
+                <span>{t.profile}</span>
+              </button>
+
+              {/* Menu Item 4: Настройки */}
+              <button
+                onClick={handleToggleLanguage}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
+              >
+                <Settings className="w-4 h-4 text-slate-400" />
+                <span>{t.settings} ({lang.toUpperCase()})</span>
+              </button>
+
+              <div className="border-t border-zinc-800 my-1"></div>
+
+              {/* Menu Item 5: Справка */}
+              <button
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  setActiveTab('embed');
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="w-4 h-4 text-emerald-400" />
+                  <span>{t.help}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
+              {/* Menu Item 6: Выйти */}
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <LogOut className="w-4 h-4" />
+                  <span>{t.logout}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-red-500/60" />
+              </button>
+
+            </div>
+          )}
+
+        </div>
+
+      </aside>
+
+      {/* MAIN FULL-SCREEN WORKSPACE CANVAS */}
+      <main className="flex-1 h-screen overflow-y-auto bg-[#09090b] flex flex-col">
+        
+        {/* Top Breadcrumb & Controls Header */}
+        <div className="px-6 py-3.5 border-b border-zinc-800 flex items-center justify-between bg-[#0d0d0e] sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <h1 className="font-bold text-white text-sm">
+              {activeProject?.name || 'Проект'} <span className="text-slate-500 text-xs font-normal">/ {activeTab}</span>
+            </h1>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
+              Bot ID: {activeProject?.botId}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-slate-400 hidden sm:inline">
+              Дневной лимит (00:00 МСК): <span className="font-bold text-white">{sub.dailyUsageCount || 0}/{sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30}</span>
+            </span>
 
             <Link
               href="/dashboard/billing"
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-all"
             >
-              <CreditCard className="w-4 h-4 text-emerald-400" />
-              <span>{t.billingTab}</span>
+              Управление тарифом
             </Link>
-
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'overview'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span>{t.statsTab}</span>
-            </button>
           </div>
+        </div>
 
-          {/* CHATGPT-STYLE BOTTOM-LEFT USER PROFILE CARD (MATCHING USER SCREENSHOT EXACTLY) */}
-          <div className="relative pt-3 border-t border-slate-800/60">
+        {/* Dynamic Workspace Grid Container */}
+        <div className="p-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto">
+          
+          {/* Main Controls Panel (7 Cols) */}
+          <div className="lg:col-span-7 space-y-6">
             
-            {/* User Profile Card Button */}
-            <div
-              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-              className="w-full bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between cursor-pointer transition-all shadow-md group"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
-                  МЕ
-                </div>
-                <div className="flex flex-col min-w-0 text-left">
-                  <span className="font-bold text-xs text-white truncate group-hover:text-blue-400 transition-colors">
-                    {userName}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {sub.isPremium ? 'Pro Access' : 'Free'}
-                  </span>
-                </div>
-              </div>
-
-              {!sub.isPremium && (
-                <Link
-                  href="/dashboard/billing"
-                  onClick={(e) => e.stopPropagation()}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-blue-600 text-white text-[11px] font-bold rounded-xl transition-all border border-slate-700 hover:border-blue-500 shrink-0"
-                >
-                  {t.upgradeBtn}
-                </Link>
-              )}
-            </div>
-
-            {/* CHATGPT-STYLE POPUP MENU (EXACT MATCH TO USER ATTACHED SCREENSHOT) */}
-            {isProfileMenuOpen && (
-              <div className="absolute bottom-16 left-0 w-64 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-slate-200 text-xs font-medium space-y-1">
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
                 
-                {/* Menu Header User */}
-                <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-800">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
-                      МЕ
+                {/* 4 Stat Cards Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
+                    <div className="text-xs text-slate-400 font-medium mb-1">Обработано сообщений</div>
+                    <div className="text-2xl font-black text-white">1,482</div>
+                    <div className="text-[10px] text-emerald-400 mt-1 font-semibold">↑ +14% на этой неделе</div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
+                    <div className="text-xs text-slate-400 font-medium mb-1">Автоматизация ИИ</div>
+                    <div className="text-2xl font-black text-emerald-400">84.2%</div>
+                    <div className="text-[10px] text-slate-400 mt-1 font-semibold">Без участия человека</div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
+                    <div className="text-xs text-slate-400 font-medium mb-1">Среднее время отклика</div>
+                    <div className="text-2xl font-black text-blue-400">0.6s</div>
+                    <div className="text-[10px] text-emerald-400 mt-1 font-semibold">Мгновенные ответы</div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
+                    <div className="text-xs text-slate-400 font-medium mb-1">Оценка клиентов</div>
+                    <div className="text-2xl font-black text-amber-400">98.4%</div>
+                    <div className="text-[10px] text-slate-400 mt-1 font-semibold">Высокая точность</div>
+                  </div>
+                </div>
+
+                {/* Main Overview Project Details */}
+                <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-4">
+                  <h3 className="font-bold text-white text-base">Информация о текущем проекте</h3>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400">Название:</span>
+                      <div className="font-bold text-white text-sm">{activeProject?.name}</div>
                     </div>
                     <div>
-                      <div className="font-bold text-white text-xs">{userName}</div>
-                      <div className="text-[10px] text-slate-400">{sub.isPremium ? 'Pro Business' : 'Free'}</div>
+                      <span className="text-slate-400">Категория:</span>
+                      <div className="font-bold text-white text-sm">{activeProject?.category}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Идентификатор Bot ID:</span>
+                      <div className="font-mono text-emerald-400 font-bold text-sm">{activeProject?.botId}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Канал оператора:</span>
+                      <div className="font-bold text-blue-400 text-sm">{operatorType.toUpperCase()}: {operatorDest}</div>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
                 </div>
-
-                {/* Menu Item 1: Изменить план */}
-                <Link
-                  href="/dashboard/billing"
-                  onClick={() => setIsProfileMenuOpen(false)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>{t.changePlan}</span>
-                </Link>
-
-                {/* Menu Item 2: Персонализация (Theme Toggle) */}
-                <button
-                  onClick={handleToggleTheme}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors text-left"
-                >
-                  {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
-                  <span>{t.personalization} ({themeMode === 'dark' ? 'Тёмная' : 'Светлая'})</span>
-                </button>
-
-                {/* Menu Item 3: Профиль */}
-                <button
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    setIsProfileModalOpen(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors text-left"
-                >
-                  <UserIcon className="w-4 h-4 text-blue-400" />
-                  <span>{t.profile}</span>
-                </button>
-
-                {/* Menu Item 4: Настройки (Language Toggle) */}
-                <button
-                  onClick={handleToggleLanguage}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors text-left"
-                >
-                  <Settings className="w-4 h-4 text-slate-400" />
-                  <span>{t.settings} ({lang.toUpperCase()})</span>
-                </button>
-
-                <div className="border-t border-slate-800 my-1"></div>
-
-                {/* Menu Item 5: Справка */}
-                <button
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    setActiveTab('embed');
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <HelpCircle className="w-4 h-4 text-emerald-400" />
-                    <span>{t.help}</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
-                </button>
-
-                {/* Menu Item 6: Выйти */}
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <LogOut className="w-4 h-4" />
-                    <span>{t.logout}</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-red-500/60" />
-                </button>
 
               </div>
             )}
 
-          </div>
-
-        </aside>
-
-        {/* Dynamic Main Workspace (7 cols) */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* TAB 1: BOT SETTINGS */}
+            {/* TAB: BOT SETTINGS */}
             {activeTab === 'bot_settings' && (
-              <div className={`rounded-2xl border p-6 space-y-6 ${
-                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-              }`}>
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
                 <div>
-                  <h2 className="font-bold text-base flex items-center gap-2">
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
                     <Palette className="w-5 h-5 text-blue-500" />
-                    {t.botSettingsTab}
+                    Персонализация стиля и личности ИИ-Консультанта
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    Проект: <span className="font-bold text-blue-400">{activeProject?.name}</span> (ID: <span className="font-mono">{activeProject?.botId}</span>)
+                    Настройте внешний вид, имя и системный тон общения.
                   </p>
                 </div>
 
@@ -612,9 +710,7 @@ export default function DashboardPage() {
                     type="text"
                     value={config.botName}
                     onChange={(e) => handleConfigChange('botName', e.target.value)}
-                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-semibold ${
-                      themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                    }`}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold"
                   />
                 </div>
 
@@ -625,14 +721,12 @@ export default function DashboardPage() {
                     rows={3}
                     value={config.welcomeMessage}
                     onChange={(e) => handleConfigChange('welcomeMessage', e.target.value)}
-                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs ${
-                      themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                    }`}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold mb-2">Системный тон общения ИИ</label>
+                  <label className="block text-xs font-bold mb-2">Системный тон общения</label>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { id: 'polite', label: 'Вежливый', desc: 'Доброжелательный' },
@@ -645,19 +739,19 @@ export default function DashboardPage() {
                         onClick={() => handleConfigChange('toneOfVoice', tone.id as WidgetConfig['toneOfVoice'])}
                         className={`p-3 rounded-xl border text-left transition-all ${
                           config.toneOfVoice === tone.id
-                            ? 'bg-blue-600 text-white border-blue-500 shadow-md'
-                            : themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                            ? 'bg-blue-600 text-white border-blue-500'
+                            : 'bg-zinc-900 border-zinc-800 text-slate-300 hover:border-zinc-700'
                         }`}
                       >
                         <div className="font-bold text-xs">{tone.label}</div>
-                        <div className="text-[10px] opacity-80 mt-0.5">{tone.desc}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{tone.desc}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold mb-2">Цвет кнопки виджета</label>
+                  <label className="block text-xs font-bold mb-2">Основной цвет кнопки и шапки</label>
                   <div className="flex items-center gap-3">
                     {['#2563eb', '#059669', '#7c3aed', '#dc2626', '#0f172a'].map((color) => (
                       <button
@@ -678,49 +772,41 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 2: KNOWLEDGE BASE */}
+            {/* TAB: KNOWLEDGE BASE */}
             {activeTab === 'knowledge' && (
-              <div className={`rounded-2xl border p-6 space-y-6 ${
-                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-              }`}>
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
                 <div>
-                  <h2 className="font-bold text-base flex items-center gap-2">
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-blue-500" />
-                    {t.knowledgeTab}
+                    База Знаний (Knowledge Base)
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    База знаний проекта <span className="font-bold text-blue-400">{activeProject?.name}</span> (ID: <span className="font-mono">{activeProject?.botId}</span>).
+                    Введите данные для обучения ИИ клиентской поддержке.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold mb-1">Регламенты и информация магазина</label>
+                  <label className="block text-xs font-bold mb-1">Регламенты и условия магазина (Textarea)</label>
                   <textarea
                     id="dash-knowledge-textarea"
                     rows={5}
                     value={config.knowledgeText}
                     onChange={(e) => handleConfigChange('knowledgeText', e.target.value)}
-                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono leading-relaxed ${
-                      themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                    }`}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono leading-relaxed"
                   />
                 </div>
 
-                <div className="pt-4 border-t border-slate-800 space-y-4">
+                <div className="pt-4 border-t border-zinc-800 space-y-4">
                   <h3 className="font-bold text-xs uppercase tracking-wider">Частые пары Вопрос-Ответ (FAQ)</h3>
 
-                  <form onSubmit={handleAddFAQ} className={`p-4 rounded-xl border space-y-3 ${
-                    themeMode === 'dark' ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
-                  }`}>
+                  <form onSubmit={handleAddFAQ} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/50 space-y-3">
                     <input
                       id="dash-faq-question-input"
                       type="text"
                       value={newQuestion}
                       onChange={(e) => setNewQuestion(e.target.value)}
                       placeholder="Вопрос..."
-                      className={`w-full border rounded-lg px-3 py-2 text-xs ${
-                        themeMode === 'dark' ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                      }`}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
                     />
                     <textarea
                       id="dash-faq-answer-input"
@@ -728,9 +814,7 @@ export default function DashboardPage() {
                       value={newAnswer}
                       onChange={(e) => setNewAnswer(e.target.value)}
                       placeholder="Ответ ИИ..."
-                      className={`w-full border rounded-lg px-3 py-2 text-xs ${
-                        themeMode === 'dark' ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                      }`}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
                     />
                     <button
                       id="dash-add-faq-btn"
@@ -745,11 +829,9 @@ export default function DashboardPage() {
 
                   <div className="space-y-3">
                     {config.faqItems?.map((item) => (
-                      <div key={item.id} className={`p-3.5 rounded-xl border space-y-1 relative ${
-                        themeMode === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
-                      }`}>
+                      <div key={item.id} className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/80 space-y-1 relative">
                         <div className="flex items-start justify-between">
-                          <div className="font-bold text-xs flex items-center gap-1.5">
+                          <div className="font-bold text-xs text-white flex items-center gap-1.5">
                             <HelpCircle className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                             <span>{item.question}</span>
                           </div>
@@ -769,47 +851,44 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 3: OPERATOR ESCALATION ROUTING */}
+            {/* TAB: OPERATOR ROUTING */}
             {activeTab === 'operator' && (
-              <div className={`rounded-2xl border p-6 space-y-6 ${
-                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-              }`}>
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
                 <div>
-                  <h2 className="font-bold text-base flex items-center gap-2">
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
                     <Headphones className="w-5 h-5 text-blue-500" />
-                    {t.operatorTitle}
+                    Маршрутизация перевода на живого оператора
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">{t.operatorDesc}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Укажите куда переводить клиентов при клике "Вызвать оператора".
+                  </p>
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold mb-2">Канал связи для перевода:</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { id: 'telegram', label: 'Telegram Бот / Чат', desc: '@support_bot' },
-                        { id: 'whatsapp', label: 'WhatsApp Business', desc: '+7 (900) 123-45-67' },
-                        { id: 'email', label: 'Support Email', desc: 'help@company.com' },
-                        { id: 'webhook', label: 'Webhook URL', desc: 'https://api.com/tickets' },
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setOperatorType(item.id as any);
-                            saveCurrentProjectConfig(config, item.id as any, operatorDest);
-                          }}
-                          className={`p-3 rounded-xl border text-left transition-all ${
-                            operatorType === item.id
-                              ? 'bg-blue-600 text-white border-blue-500'
-                              : themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-                          }`}
-                        >
-                          <div className="font-bold text-xs">{item.label}</div>
-                          <div className="text-[10px] opacity-80 mt-0.5">{item.desc}</div>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'telegram', label: 'Telegram Бот / Чат', desc: '@support_bot' },
+                      { id: 'whatsapp', label: 'WhatsApp Business', desc: '+7 (900) 123-45-67' },
+                      { id: 'email', label: 'Support Email', desc: 'help@company.com' },
+                      { id: 'webhook', label: 'Webhook URL', desc: 'https://api.com/tickets' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setOperatorType(item.id as any);
+                          saveCurrentProjectConfig(config, item.id as any, operatorDest);
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all ${
+                          operatorType === item.id
+                            ? 'bg-blue-600 text-white border-blue-500'
+                            : 'bg-zinc-900 border-zinc-800 text-slate-300 hover:border-zinc-700'
+                        }`}
+                      >
+                        <div className="font-bold text-xs">{item.label}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{item.desc}</div>
+                      </button>
+                    ))}
                   </div>
 
                   <div>
@@ -822,40 +901,28 @@ export default function DashboardPage() {
                         saveCurrentProjectConfig(config, operatorType, e.target.value);
                       }}
                       placeholder="@my_support_bot"
-                      className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono ${
-                        themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
-                      }`}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono"
                     />
                   </div>
-
-                  <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 text-xs space-y-1">
-                    <div className="font-bold text-blue-400">💡 Как это работает в виджете:</div>
-                    <p className="text-slate-300 leading-relaxed">
-                      При клике клиента на кнопку <b>"Вызвать оператора"</b> виджет перенаправит его на указанный Telegram / WhatsApp аккаунт.
-                    </p>
-                  </div>
                 </div>
-
               </div>
             )}
 
-            {/* TAB 4: EMBED SCRIPT */}
+            {/* TAB: CONNECT & EMBED */}
             {activeTab === 'embed' && (
-              <div className={`rounded-2xl border p-6 space-y-6 ${
-                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-              }`}>
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
                 <div>
-                  <h2 className="font-bold text-base flex items-center gap-2">
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
                     <Code2 className="w-5 h-5 text-blue-500" />
-                    Встраиваемый код виджета
+                    Подключение и встраиваемый код
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    Уникальный код для проекта <span className="font-bold text-blue-400">{activeProject?.name}</span> (Bot ID: <span className="font-mono text-emerald-400 font-bold">{activeProject?.botId}</span>):
+                    Уникальный код для проекта <span className="font-bold text-blue-400">{activeProject?.name}</span>:
                   </p>
                 </div>
 
                 <div className="relative">
-                  <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-slate-800 overflow-x-auto leading-relaxed shadow-lg">
+                  <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-zinc-800 overflow-x-auto leading-relaxed shadow-lg">
                     <code>{generateEmbedScript(activeProject?.botId || 'bot_proj_98231a')}</code>
                   </pre>
                   
@@ -879,44 +946,125 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 5: STATS */}
-            {activeTab === 'overview' && (
-              <div className={`rounded-2xl border p-6 space-y-6 ${
-                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
-              }`}>
-                <h2 className="font-bold text-base">Статистика проекта {activeProject?.name}</h2>
+            {/* TAB: ANALYTICS & METRICS */}
+            {activeTab === 'analytics' && (
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-blue-500" />
+                    Аналитика и детальные метрики
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Отслеживайте нагрузку, скорость отклика и удовлетворенность клиентов.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                    <div className="text-xs text-slate-400 font-semibold mb-1">Обработано вопросов</div>
-                    <div className="text-2xl font-black text-white">1,482</div>
+                  <div className="p-4 rounded-xl bg-zinc-800/50 border border-zinc-700 space-y-1">
+                    <div className="text-xs text-slate-400 font-semibold">Конверсия ответов</div>
+                    <div className="text-2xl font-black text-emerald-400">92.4%</div>
+                    <div className="text-[10px] text-slate-400">Клиенты получили нужный ответ</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                    <div className="text-xs text-slate-400 font-semibold mb-1">Автоматизация ИИ</div>
-                    <div className="text-2xl font-black text-emerald-400">84.2%</div>
+
+                  <div className="p-4 rounded-xl bg-zinc-800/50 border border-zinc-700 space-y-1">
+                    <div className="text-xs text-slate-400 font-semibold">Перевод на оператора</div>
+                    <div className="text-2xl font-black text-amber-400">7.6%</div>
+                    <div className="text-[10px] text-slate-400">Меньше 8% требуют человека</div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: BILLING & TARIFFS */}
+            {activeTab === 'billing' && (
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-400" />
+                    Управление подпиской и тарифом
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Дневные лимиты обновляются каждый день в 00:00 по Московскому времени.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-xl bg-zinc-800/50 border border-zinc-700">
+                    <div className="font-bold text-white text-sm">Starter Free</div>
+                    <div className="text-xl font-black text-white my-2">0 ₽</div>
+                    <p className="text-[10px] text-slate-400">30 ответов в месяц</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-600/50">
+                    <div className="font-bold text-white text-sm flex items-center gap-1">
+                      <span>Pro Business</span>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    </div>
+                    <div className="text-xl font-black text-white my-2">1 890 ₽ <span className="text-[10px] font-normal text-slate-400">/ $19</span></div>
+                    <p className="text-[10px] text-emerald-400 font-bold">2 000 ответов в день (00:00 МСК)</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-purple-950/40 border border-purple-600/50">
+                    <div className="font-bold text-white text-sm flex items-center gap-1">
+                      <span>Max Plan</span>
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    </div>
+                    <div className="text-xl font-black text-white my-2">2 990 ₽ <span className="text-[10px] font-normal text-slate-400">/ $39.99</span></div>
+                    <p className="text-[10px] text-amber-400 font-bold">6 000 ответов в день (00:00 МСК)</p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/dashboard/billing"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2"
+                >
+                  Перейти к выбору тарифа и оплате
+                </Link>
+              </div>
+            )}
+
+            {/* TAB: AI SECURITY */}
+            {activeTab === 'security' && (
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+                <div>
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-purple-400" />
+                    Безопасность ИИ и Защита Данных
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Система фильтрацииPrompt Injection активна на уровне API.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-xs text-emerald-300 space-y-2">
+                  <div className="font-bold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Защита от утечки данных включена</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    ИИ строго отвечает по базе знаний компании и мгновенно отклоняет попытки взлома промпта (Prompt Injection).
+                  </p>
                 </div>
               </div>
             )}
 
           </div>
 
-          {/* Right Preview Column (5 cols) */}
+          {/* Right Live Preview Widget Column (5 Cols) */}
           <div className="lg:col-span-5">
-            <div className={`sticky top-20 rounded-2xl p-5 border flex flex-col items-center justify-center ${
-              themeMode === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-200/60 border-slate-300'
-            }`}>
+            <div className="sticky top-4 bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800 flex flex-col items-center justify-center">
               
               <div className="w-full flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                  Интерактивное Превью
+                  Интерактивный Виджет
                 </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold font-mono">
                   {activeProject?.botId}
                 </span>
               </div>
 
-              {/* Responsive Live Widget Card */}
+              {/* Live Preview Card */}
               <div className="w-full max-w-sm bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden h-[440px]">
                 
                 {/* Dynamic Header */}
@@ -972,7 +1120,7 @@ export default function DashboardPage() {
                     type="text"
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
-                    placeholder="Задайте вопрос превью..."
+                    placeholder="Протестируйте ответ..."
                     className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
@@ -991,12 +1139,13 @@ export default function DashboardPage() {
           </div>
 
         </div>
-      </div>
+
+      </main>
 
       {/* CREATE NEW PROJECT SURVEY MODAL */}
       {isAddProjectModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
             <button
               onClick={() => setIsAddProjectModalOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -1010,7 +1159,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h3 className="font-bold text-base">Создание нового проекта</h3>
-                <p className="text-xs text-slate-400">Каждый проект получает уникальный Bot ID и отдельный скрипт</p>
+                <p className="text-xs text-slate-400">Каждый проект получает уникальный Bot ID и отдельный код</p>
               </div>
             </div>
 
@@ -1023,7 +1172,7 @@ export default function DashboardPage() {
                   value={newProjName}
                   onChange={(e) => setNewProjName(e.target.value)}
                   placeholder="Магазин Ключей #2"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1034,7 +1183,7 @@ export default function DashboardPage() {
                   value={newProjCategory}
                   onChange={(e) => setNewProjCategory(e.target.value)}
                   placeholder="Цифровые товары / Ритейл / Одежда"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1045,7 +1194,7 @@ export default function DashboardPage() {
                   value={newProjDesc}
                   onChange={(e) => setNewProjDesc(e.target.value)}
                   placeholder="Опишите, чем занимается ваш сайт..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1059,7 +1208,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddProjectModalOpen(false)}
-                  className="px-4 py-3 bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl hover:bg-slate-700"
+                  className="px-4 py-3 bg-zinc-800 text-slate-300 font-semibold text-xs rounded-xl hover:bg-zinc-700"
                 >
                   Отмена
                 </button>
@@ -1072,7 +1221,7 @@ export default function DashboardPage() {
       {/* USER PROFILE MODAL */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
             <button
               onClick={() => setIsProfileModalOpen(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -1090,10 +1239,14 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/80 text-xs space-y-2">
+            <div className="bg-zinc-800/60 p-4 rounded-xl border border-zinc-700/80 text-xs space-y-2">
               <div className="flex justify-between font-semibold">
                 <span>Текущий тариф:</span>
-                <span className="text-emerald-400">{sub.isPremium ? 'Pro Business' : 'Free (Starter)'}</span>
+                <span className="text-emerald-400">{sub.plan} Plan</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Дневной лимит (00:00 МСК):</span>
+                <span className="text-white font-bold">{sub.plan === 'Pro' ? '2 000' : sub.plan === 'Max' ? '6 000' : '30'} сообщений</span>
               </div>
               <div className="flex justify-between text-slate-400">
                 <span>Всего проектов:</span>

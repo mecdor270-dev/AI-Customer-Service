@@ -79,14 +79,31 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. Check usage limits for free users
+    // 3. Check usage limits for free / pro / max users
     const isPremium = subscription?.isPremium || false;
-    const usageCount = subscription?.usageCount || 0;
+    const plan = subscription?.plan || 'Starter';
+    const dailyUsage = subscription?.dailyUsageCount || 0;
+    const monthlyUsage = subscription?.usageCount || 0;
 
-    if (!isPremium && usageCount >= 30) {
+    // Daily limit checks (resets at 00:00 MSK)
+    let limitReached = false;
+    let limitMsg = '';
+
+    if (plan === 'Starter' && !isPremium && monthlyUsage >= 30) {
+      limitReached = true;
+      limitMsg = 'Бесплатный лимит обращений исчерпан (30/30). Пожалуйста, обновите тарифный план до Pro или Max!';
+    } else if (plan === 'Pro' && dailyUsage >= 2000) {
+      limitReached = true;
+      limitMsg = 'Дневной лимит ответов тарифа Pro (2 000 сообщений в день) исчерпан. Лимит обновится в 00:00 по Москве или перейдите на Max Plan!';
+    } else if (plan === 'Max' && dailyUsage >= 6000) {
+      limitReached = true;
+      limitMsg = 'Дневной лимит ответов тарифа Max (6 000 сообщений в день) исчерпан. Лимит обновится в 00:00 по Москве.';
+    }
+
+    if (limitReached) {
       return NextResponse.json({
         botId: botId || 'bot_shop_default',
-        response: 'Лимит обращений исчерпан. Пожалуйста, обновите тарифный план.',
+        response: limitMsg,
         limitExceeded: true,
       });
     }

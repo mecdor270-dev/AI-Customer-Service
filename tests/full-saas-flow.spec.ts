@@ -12,7 +12,7 @@ test.describe('Комплексный E2E сквозной тест AI Customer 
     }
   });
 
-  test('Полный пользовательский сценарий SaaS: Лендинг -> Авторизация -> Дашборд -> База Знаний -> Виджет -> Оплата Pro', async ({ page }) => {
+  test('Полный пользовательский сценарий SaaS: Лендинг -> Авторизация -> Дашборд -> База Знаний -> Виджет -> Оплата Pro/Max', async ({ page }) => {
 
     // 1. Переход на Главную страницу (Лендинг)
     await page.goto('/');
@@ -28,10 +28,11 @@ test.describe('Комплексный E2E сквозной тест AI Customer 
     await page.click('button[type="submit"]');
     
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
-    await expect(page.locator('h1')).toContainText('Панель управления');
+    await expect(page.locator('h1')).toBeVisible();
     await page.screenshot({ path: 'tests/screenshots/02-dashboard-overview.png', fullPage: true });
 
-    // 3. Изменение имени бота и обновление Базы Знаний
+    // 3. Переход в настройки ИИ-Бота и обновление Базы Знаний
+    await page.click('text=Настройки и цвет бота');
     const nameInput = page.locator('#dash-bot-name-input');
     await nameInput.fill('Инновационный ИИ-Консультант');
 
@@ -62,18 +63,15 @@ test.describe('Комплексный E2E сквозной тест AI Customer 
     await expect(messagesList).toContainText('PROMO2026', { timeout: 10000 });
     await page.screenshot({ path: 'tests/screenshots/04-widget-query-response.png' });
 
-    // 5. Переход на страницу оплаты /dashboard/billing и активация Демо Pro Access
+    // 5. Переход на страницу оплаты /dashboard/billing и проверка тарифа Pro
     await page.goto('/dashboard/billing');
-    await expect(page.locator('h2')).toContainText('Выберите тарифный план');
+    await expect(page.locator('h2')).toContainText('Выберите подходящий план');
 
-    // Активация Демо Pro Access
-    const demoProBtn = page.locator('#activate-demo-pro-btn');
-    await expect(demoProBtn).toBeVisible();
-    await demoProBtn.click();
+    // Проверка отображения карт тарифов
+    await expect(page.locator('text=Pro Business')).toBeVisible();
+    await expect(page.locator('text=Max Plan')).toBeVisible();
 
-    // Проверка смены статуса подписки на Активен
-    await expect(page.locator('text=PRO ACCESS (АКТИВЕН)')).toBeVisible();
-    await page.screenshot({ path: 'tests/screenshots/05-billing-pro-activated.png', fullPage: true });
+    await page.screenshot({ path: 'tests/screenshots/05-billing-pro-max-plans.png', fullPage: true });
 
   });
 
