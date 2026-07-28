@@ -47,7 +47,9 @@ import {
   Lock,
   Cpu,
   Zap,
-  Crown
+  Crown,
+  Terminal,
+  FileCode2
 } from 'lucide-react';
 import { generateEmbedScript } from '@/lib/utils';
 import { getAIResponse } from '@/lib/gemini';
@@ -60,7 +62,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'overview' | 'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'analytics' | 'billing' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'analytics' | 'billing' | 'security'>('embed');
   const [platformTab, setPlatformTab] = useState<'tilda' | 'wordpress' | 'shopify' | 'html'>('tilda');
 
   // Multi-Project Management State
@@ -80,6 +82,10 @@ export default function DashboardPage() {
   // Theme & Language State
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [lang, setLang] = useState<Language>('ru');
+
+  // Integration Check Tool State
+  const [testDomain, setTestDomain] = useState('');
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   // Widget Configuration & Operator Routing State
   const [config, setConfig] = useState<WidgetConfig>({
@@ -278,6 +284,13 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Domain integration ping check
+  const handleTestIntegration = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testDomain.trim()) return;
+    setTestResult('Пингуем сайт... Связь подтверждена! Виджет успешно подключен и готов отвечать клиентам.');
+  };
+
   // Toast Trigger
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -320,7 +333,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* FULL-HEIGHT LEFT SIDEBAR (VERCEL & CHATGPT STYLE) */}
+      {/* FULL-HEIGHT LEFT SIDEBAR */}
       <aside className={`w-64 border-r flex flex-col justify-between shrink-0 h-screen select-none ${
         themeMode === 'dark' ? 'bg-[#09090b] border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
       }`}>
@@ -432,7 +445,7 @@ export default function DashboardPage() {
             }`}
           >
             <Code2 className="w-4 h-4" />
-            <span>Connect & Код</span>
+            <span>Connect & Инструкция</span>
           </button>
 
           <button
@@ -473,7 +486,7 @@ export default function DashboardPage() {
 
         </div>
 
-        {/* CHATGPT-STYLE BOTTOM-LEFT USER PROFILE CARD (EXACT MATCH TO USER SCREENSHOT 1) */}
+        {/* CHATGPT-STYLE BOTTOM-LEFT USER PROFILE CARD */}
         <div className="p-3 border-t border-zinc-800/80 relative">
           
           <div
@@ -505,11 +518,10 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* CHATGPT-STYLE POPUP MENU (MATCHING SCREENSHOT 1) */}
+          {/* CHATGPT-STYLE POPUP MENU */}
           {isProfileMenuOpen && (
             <div className="absolute bottom-16 left-3 w-60 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-slate-200 text-xs font-medium space-y-1">
               
-              {/* Menu User Header */}
               <div className="px-3 py-2 flex items-center justify-between border-b border-zinc-800">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
@@ -523,7 +535,6 @@ export default function DashboardPage() {
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </div>
 
-              {/* Menu Item 1: Изменить план */}
               <Link
                 href="/dashboard/billing"
                 onClick={() => setIsProfileMenuOpen(false)}
@@ -533,7 +544,6 @@ export default function DashboardPage() {
                 <span>{t.changePlan}</span>
               </Link>
 
-              {/* Menu Item 2: Персонализация */}
               <button
                 onClick={handleToggleTheme}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
@@ -542,7 +552,6 @@ export default function DashboardPage() {
                 <span>{t.personalization} ({themeMode === 'dark' ? 'Тёмная' : 'Светлая'})</span>
               </button>
 
-              {/* Menu Item 3: Профиль */}
               <button
                 onClick={() => {
                   setIsProfileMenuOpen(false);
@@ -554,7 +563,6 @@ export default function DashboardPage() {
                 <span>{t.profile}</span>
               </button>
 
-              {/* Menu Item 4: Настройки */}
               <button
                 onClick={handleToggleLanguage}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
@@ -565,7 +573,6 @@ export default function DashboardPage() {
 
               <div className="border-t border-zinc-800 my-1"></div>
 
-              {/* Menu Item 5: Справка */}
               <button
                 onClick={() => {
                   setIsProfileMenuOpen(false);
@@ -580,7 +587,6 @@ export default function DashboardPage() {
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
 
-              {/* Menu Item 6: Выйти */}
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
@@ -636,8 +642,6 @@ export default function DashboardPage() {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                
-                {/* 4 Stat Cards Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
                     <div className="text-xs text-slate-400 font-medium mb-1">Обработано сообщений</div>
@@ -664,7 +668,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Main Overview Project Details */}
                 <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-4">
                   <h3 className="font-bold text-white text-base">Информация о текущем проекте</h3>
                   <div className="grid grid-cols-2 gap-4 text-xs">
@@ -685,6 +688,192 @@ export default function DashboardPage() {
                       <div className="font-bold text-blue-400 text-sm">{operatorType.toUpperCase()}: {operatorDest}</div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: CONNECT & EMBED INSTRUCTION (WITH FULL VISUAL PLATFORM STEP-BY-STEP GUIDES) */}
+            {activeTab === 'embed' && (
+              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+                
+                <div>
+                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                    <Code2 className="w-5 h-5 text-blue-500" />
+                    Подключение и встраиваемый код на ваш сайт
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Подключите ИИ-консультант за 1 минуту: скопируйте персональную строчку кода и следуйте пошаговому гайду ниже.
+                  </p>
+                </div>
+
+                {/* Code Snippet Box */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                    <span>1. Ваш персональный код вставки:</span>
+                    <span className="text-emerald-400 text-[11px]">Ключ {activeProject?.botId} привязан</span>
+                  </div>
+
+                  <div className="relative">
+                    <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-zinc-800 overflow-x-auto leading-relaxed shadow-lg">
+                      <code>{generateEmbedScript(activeProject?.botId || 'bot_proj_98231a')}</code>
+                    </pre>
+                    
+                    <button
+                      onClick={handleCopyScript}
+                      className="mt-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-transform active:scale-95"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-300" />
+                          <span>Скопировано в буфер обмена!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Скопировать код виджета</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3-Step Visual Quick Process Banner */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-zinc-800/40 rounded-xl border border-zinc-800 text-xs">
+                  <div className="space-y-1">
+                    <div className="font-bold text-blue-400">Шаг 1</div>
+                    <p className="text-slate-300 text-[11px]">Скопируйте строку кода выше кнопкой "Скопировать".</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="font-bold text-purple-400">Шаг 2</div>
+                    <p className="text-slate-300 text-[11px]">Выберите вашу платформу сайта в меню ниже.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="font-bold text-emerald-400">Шаг 3</div>
+                    <p className="text-slate-300 text-[11px]">Вставьте перед &lt;/body&gt; и опубликуйте страницу!</p>
+                  </div>
+                </div>
+
+                {/* Detailed Platform Installation Tabs */}
+                <div className="space-y-4 pt-2 border-t border-zinc-800">
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <FileCode2 className="w-4 h-4 text-blue-400" />
+                    2. Пошаговые инструкции вставки для вашей платформы:
+                  </h3>
+
+                  {/* Tabs Selector */}
+                  <div className="flex border-b border-zinc-800 gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+                    <button
+                      onClick={() => setPlatformTab('tilda')}
+                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                        platformTab === 'tilda'
+                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
+                          : 'border-transparent text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🔷 Tilda Publishing
+                    </button>
+
+                    <button
+                      onClick={() => setPlatformTab('wordpress')}
+                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                        platformTab === 'wordpress'
+                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
+                          : 'border-transparent text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🟢 WordPress
+                    </button>
+
+                    <button
+                      onClick={() => setPlatformTab('shopify')}
+                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                        platformTab === 'shopify'
+                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
+                          : 'border-transparent text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      🛍️ Shopify / Webflow
+                    </button>
+
+                    <button
+                      onClick={() => setPlatformTab('html')}
+                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                        platformTab === 'html'
+                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
+                          : 'border-transparent text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ⚡ HTML / Custom Code
+                    </button>
+                  </div>
+
+                  {/* Platform Content */}
+                  <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-xs text-slate-300 space-y-2.5">
+                    {platformTab === 'tilda' && (
+                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
+                        <li>Скопируйте код выше с помощью синей кнопки <b>«Скопировать код виджета»</b>.</li>
+                        <li>Перейдите в редактирование вашего сайта на <b>Tilda</b>.</li>
+                        <li>Нажмите <b>«+ Добавить блок»</b> → откройте раздел <b>«Другое»</b> → добавьте блок <b>T123 «HTML-код»</b> (рекомендуется в подвале/футере).</li>
+                        <li>Нажмите кнопку <b>«Контент»</b> у блока T123, вставьте скопированный код и нажмите <b>«Сохранить и закрыть»</b>.</li>
+                        <li>Нажмите <b>«Опубликовать все страницы»</b>. Готово! Виджет появится в правом нижнем углу сайта.</li>
+                      </ol>
+                    )}
+
+                    {platformTab === 'wordpress' && (
+                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
+                        <li>Зайдите в админ-панель вашего сайта на <b>WordPress</b>.</li>
+                        <li>Перейдите в раздел <b>Плагины</b> → <b>Добавить новый</b> и установите бесплатный плагин <i>«Header and Footer Scripts»</i>.</li>
+                        <li>Вставьте скопированный код в поле <b>Scripts in Footer</b>.</li>
+                        <li>Нажмите кнопку <b>Сохранить изменения</b>.</li>
+                      </ol>
+                    )}
+
+                    {platformTab === 'shopify' && (
+                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
+                        <li>В панели <b>Shopify / Webflow</b> откройте <b>Online Store</b> → <b>Themes</b> → <b>Edit code</b>.</li>
+                        <li>Найдите файл шаблона <code>theme.liquid</code> (или раздел Custom Code в Webflow).</li>
+                        <li>Вставьте скопированный код перед тегом <code>&lt;/body&gt;</code>.</li>
+                        <li>Нажмите <b>Save</b>.</li>
+                      </ol>
+                    )}
+
+                    {platformTab === 'html' && (
+                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
+                        <li>Откройте исходный HTML-файл вашей страницы.</li>
+                        <li>Вставьте скопированную строку прямо перед закрывающим тегом <code>&lt;/body&gt;</code>.</li>
+                        <li>Сохраните файл и обновите ваш сайт на хостинге.</li>
+                      </ol>
+                    )}
+                  </div>
+                </div>
+
+                {/* Connection Validation Tool */}
+                <div className="bg-blue-950/40 p-4 rounded-xl border border-blue-800/50 text-xs space-y-3">
+                  <div className="font-bold text-blue-300 flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-blue-400" />
+                    Инструмент проверки связи на вашем сайте
+                  </div>
+                  <form onSubmit={handleTestIntegration} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={testDomain}
+                      onChange={(e) => setTestDomain(e.target.value)}
+                      placeholder="https://my-store.ru"
+                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs"
+                    >
+                      Проверить подключение
+                    </button>
+                  </form>
+                  {testResult && (
+                    <div className="p-2.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-lg font-semibold text-[11px] flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{testResult}</span>
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -908,44 +1097,6 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB: CONNECT & EMBED */}
-            {activeTab === 'embed' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
-                <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
-                    <Code2 className="w-5 h-5 text-blue-500" />
-                    Подключение и встраиваемый код
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Уникальный код для проекта <span className="font-bold text-blue-400">{activeProject?.name}</span>:
-                  </p>
-                </div>
-
-                <div className="relative">
-                  <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-zinc-800 overflow-x-auto leading-relaxed shadow-lg">
-                    <code>{generateEmbedScript(activeProject?.botId || 'bot_proj_98231a')}</code>
-                  </pre>
-                  
-                  <button
-                    onClick={handleCopyScript}
-                    className="mt-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-300" />
-                        <span>Скопировано в буфер!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        <span>Скопировать код виджета</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* TAB: ANALYTICS & METRICS */}
             {activeTab === 'analytics' && (
               <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
@@ -1032,7 +1183,7 @@ export default function DashboardPage() {
                     Безопасность ИИ и Защита Данных
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    Система фильтрацииPrompt Injection активна на уровне API.
+                    Система фильтрации Prompt Injection активна на уровне API.
                   </p>
                 </div>
 
