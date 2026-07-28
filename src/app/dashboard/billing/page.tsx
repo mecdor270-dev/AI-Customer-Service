@@ -7,14 +7,13 @@ import {
   CheckCircle2,
   Sparkles,
   CreditCard,
-  Wallet,
   ShieldCheck,
   Zap,
   Check,
-  Bot,
-  Layers,
   X,
-  AlertCircle
+  AlertCircle,
+  Layers,
+  Wallet
 } from 'lucide-react';
 import { getSubscription, activateProDemo, saveSubscription, UserSubscription } from '@/lib/usage';
 
@@ -108,7 +107,7 @@ export default function BillingPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 space-y-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8 space-y-8">
         
         {/* Banner if Limit Exceeded */}
         {!sub.isPremium && sub.usageCount >= sub.maxFreeLimit && (
@@ -135,7 +134,7 @@ export default function BillingPage() {
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Выберите тарифный план</h2>
           <p className="text-sm text-slate-600">
-            Подключите Pro Business для доступа к безупречной скорости Gemini Flash и неограниченным диалогам.
+            Подключите Pro Business для доступа к высокой скорости Умного ИИ и неограниченным диалогам.
           </p>
         </div>
 
@@ -165,7 +164,7 @@ export default function BillingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Базовая модель ИИ</span>
+                  <span>Базовая модель Умного ИИ</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -219,7 +218,7 @@ export default function BillingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>Приоритетная обработка через Gemini Flash</span>
+                  <span>Приоритетная обработка через Умный ИИ</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-blue-600 shrink-0" />
@@ -241,7 +240,7 @@ export default function BillingPage() {
                 <span>Оформить подписку Pro</span>
               </button>
 
-              {/* DEMO PRO ACCESS BUTTON (Required by Prompt #4) */}
+              {/* DEMO PRO ACCESS BUTTON */}
               <button
                 id="activate-demo-pro-btn"
                 onClick={() => handleActivatePro('LavaPay')}
@@ -256,114 +255,113 @@ export default function BillingPage() {
 
         </div>
 
-        {/* Payment Gateways Selection Section */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 max-w-4xl mx-auto space-y-6 shadow-xs">
-          <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-            <Layers className="w-5 h-5 text-blue-600" />
-            Выбор платежного шлюза
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* LavaPay Option */}
-            <div
-              onClick={() => setSelectedGateway('LavaPay')}
-              className={`cursor-pointer p-4 rounded-xl border flex items-center justify-between transition-all ${
-                selectedGateway === 'LavaPay'
-                  ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
-                  LAVA
-                </div>
-                <div>
-                  <div className="font-bold text-xs text-slate-900">LavaPay (Карты СНГ, СБП, МИР)</div>
-                  <div className="text-[11px] text-slate-500">Мгновенное зачисление в рублях</div>
-                </div>
-              </div>
-              {selectedGateway === 'LavaPay' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-            </div>
-
-            {/* CryptoMus Option */}
-            <div
-              onClick={() => setSelectedGateway('CryptoMus')}
-              className={`cursor-pointer p-4 rounded-xl border flex items-center justify-between transition-all ${
-                selectedGateway === 'CryptoMus'
-                  ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs">
-                  CRYPTO
-                </div>
-                <div>
-                  <div className="font-bold text-xs text-slate-900">CryptoMus (USDT, BTC, TON)</div>
-                  <div className="text-[11px] text-slate-500">Оплата криптовалютой</div>
-                </div>
-              </div>
-              {selectedGateway === 'CryptoMus' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-            </div>
-
-          </div>
-        </div>
-
       </main>
 
-      {/* Payment Modal Simulation */}
+      {/* Payment Modal with Embedded Gateway Selector */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 p-6 relative">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 p-6 relative space-y-5">
+            
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">Оплата подписки Pro Business</h3>
-                <p className="text-xs text-slate-500">Шлюз: {selectedGateway}</p>
+                <h3 className="font-bold text-slate-900 text-base">Оплата подписки Pro Business</h3>
+                <p className="text-xs text-slate-500">Выберите удобный способ оплаты</p>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2 mb-6">
+            {/* Embedded Payment Method Choice inside Modal */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Способ оплаты:</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                
+                {/* LavaPay Option */}
+                <div
+                  onClick={() => setSelectedGateway('LavaPay')}
+                  className={`cursor-pointer p-3.5 rounded-xl border flex items-center justify-between transition-all ${
+                    selectedGateway === 'LavaPay'
+                      ? 'border-blue-600 bg-blue-50/50 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
+                      LAVA
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900">LavaPay</div>
+                      <div className="text-[10px] text-slate-500">Карты СНГ, СБП, МИР</div>
+                    </div>
+                  </div>
+                  {selectedGateway === 'LavaPay' && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                </div>
+
+                {/* CryptoMus Option */}
+                <div
+                  onClick={() => setSelectedGateway('CryptoMus')}
+                  className={`cursor-pointer p-3.5 rounded-xl border flex items-center justify-between transition-all ${
+                    selectedGateway === 'CryptoMus'
+                      ? 'border-purple-600 bg-purple-50/50 ring-2 ring-purple-500/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-[10px]">
+                      CRYPTO
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900">CryptoMus</div>
+                      <div className="text-[10px] text-slate-500">USDT, BTC, TON</div>
+                    </div>
+                  </div>
+                  {selectedGateway === 'CryptoMus' && <CheckCircle2 className="w-4 h-4 text-purple-600" />}
+                </div>
+
+              </div>
+            </div>
+
+            {/* Order Summary Box */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2">
               <div className="flex justify-between font-semibold text-slate-700">
                 <span>Тариф:</span>
                 <span>Pro Business (1 Месяц)</span>
               </div>
-              <div className="flex justify-between font-semibold text-slate-700">
-                <span>К оплате:</span>
-                <span className="text-slate-900 font-bold">1 890 ₽ ($19)</span>
-              </div>
               <div className="flex justify-between text-slate-500">
-                <span>Способ:</span>
-                <span>{selectedGateway === 'LavaPay' ? 'СБП / МИР / LavaPay' : 'CryptoMus (USDT)'}</span>
+                <span>Выбранный шлюз:</span>
+                <span className="font-bold text-slate-800">{selectedGateway === 'LavaPay' ? 'LavaPay (СБП/МИР)' : 'CryptoMus (USDT)'}</span>
+              </div>
+              <div className="flex justify-between font-bold text-slate-900 text-sm border-t border-slate-200 pt-2">
+                <span>К оплате:</span>
+                <span className="text-blue-600">1 890 ₽ ($19)</span>
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <button
                 onClick={() => handleActivatePro(selectedGateway)}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Подтвердить оплату (Симуляция)</span>
+                <span>Оплатить {selectedGateway === 'LavaPay' ? 'через LavaPay (1 890 ₽)' : 'через CryptoMus ($19)'}</span>
               </button>
 
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="w-full py-2.5 bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl"
+                className="w-full py-2.5 bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-200"
               >
                 Отмена
               </button>
             </div>
+
           </div>
         </div>
       )}

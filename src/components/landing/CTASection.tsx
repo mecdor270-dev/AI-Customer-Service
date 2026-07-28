@@ -4,7 +4,7 @@ import { ArrowRight, Bot, CheckCircle } from 'lucide-react';
 export default function CTASection() {
   return (
     <section className="py-20 bg-slate-900 relative overflow-hidden">
-      {/* Background glow matching the reference image */}
+      {/* Background glow */}
       <div className="absolute inset-0 bg-radial from-blue-600/30 via-slate-900 to-slate-950 pointer-events-none"></div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
@@ -23,7 +23,7 @@ export default function CTASection() {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
           <Link
-            href="/dashboard"
+            href="/auth/register"
             className="w-full sm:w-auto px-8 py-4 text-base font-bold text-slate-900 bg-white hover:bg-blue-50 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
           >
             <span>Попробовать бесплатно</span>
@@ -31,7 +31,7 @@ export default function CTASection() {
           </Link>
 
           <Link
-            href="/dashboard"
+            href="/auth/login"
             className="w-full sm:w-auto px-8 py-4 text-base font-bold text-white bg-blue-600/60 hover:bg-blue-600 border border-blue-400/40 rounded-xl transition-all flex items-center justify-center gap-2"
           >
             <span>Войти в панель</span>
@@ -49,7 +49,7 @@ export default function CTASection() {
           </span>
           <span className="flex items-center gap-1.5">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
-            Поддержка Google GenAI API
+            Современный Умный ИИ
           </span>
         </div>
 

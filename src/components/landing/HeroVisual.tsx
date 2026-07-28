@@ -37,13 +37,13 @@ export default function HeroVisual() {
 
   return (
     <div className="relative w-full max-w-5xl mx-auto my-8">
-      {/* Glow Backdrop effect matching the reference image */}
+      {/* Glow Backdrop effect */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-80 bg-blue-500/20 blur-3xl rounded-full pointer-events-none -z-10 animate-pulse-slow"></div>
 
-      {/* 3D Stack / Card Visual Container */}
+      {/* 3D Visual Cards Stack Container */}
       <div className="relative z-10 flex flex-col lg:flex-row items-center justify-center gap-6">
 
-        {/* 3D Visual Cards Stack representation (inspired by the reference image's card sequence) */}
+        {/* 3D Visual Cards Stack representation */}
         <div className="w-full lg:w-1/2 space-y-4">
           <div className="relative p-6 rounded-2xl bg-white/90 backdrop-blur-xl border border-blue-200/80 shadow-xl shadow-blue-500/10 hover:shadow-2xl hover:border-blue-400 transition-all duration-300 transform lg:-rotate-1">
             <div className="flex items-center justify-between mb-4">
@@ -81,7 +81,7 @@ export default function HeroVisual() {
             <div className="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-xs overflow-x-auto border border-slate-800">
               <div className="text-slate-500 text-[10px] uppercase mb-1 font-sans font-semibold">1-Click Вставка на ваш сайт:</div>
               <code className="text-blue-400">
-                &lt;script src=&quot;https://cdn.aichatpulse.io/widget.js&quot; data-id=&quot;demo_9823&quot; async&gt;&lt;/script&gt;
+                &lt;script src=&quot;http://localhost:3000/widget.js&quot; data-bot-id=&quot;demo-bot-123&quot; defer&gt;&lt;/script&gt;
               </code>
             </div>
           </div>
@@ -96,7 +96,7 @@ export default function HeroVisual() {
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Интерактивный тест AI-консультанта</span>
               </div>
               <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-semibold">
-                @google/genai
+                Умный ИИ
               </span>
             </div>
 

@@ -613,9 +613,9 @@ export default function DashboardPage() {
             {/* TAB 5: AI MODEL & SETTINGS */}
             {activeTab === 'settings' && (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-xs animate-in fade-in duration-200">
-                <h2 className="font-bold text-slate-900 text-base">Настройки Google GenAI API</h2>
+                <h2 className="font-bold text-slate-900 text-base">Настройки Умного ИИ & API</h2>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ключ Google GenAI (опционально)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Ваш ключ API (опционально)</label>
                   <input
                     type="password"
                     value={config.apiKey || ''}

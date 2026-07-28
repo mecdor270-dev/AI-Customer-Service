@@ -3,6 +3,7 @@ import Footer from '@/components/Footer';
 import HeroVisual from '@/components/landing/HeroVisual';
 import BrandGuidelines from '@/components/landing/BrandGuidelines';
 import StatsSection from '@/components/landing/StatsSection';
+import PricingSection from '@/components/landing/PricingSection';
 import CTASection from '@/components/landing/CTASection';
 import WidgetPreview from '@/components/WidgetPreview';
 import Link from 'next/link';
@@ -15,7 +16,7 @@ export default function Home() {
 
       <main className="flex-1">
         {/* HERO SECTION */}
-        <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-grid-pattern">
+        <section id="features" className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden bg-grid-pattern">
           {/* Subtle background glow */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-400/10 via-blue-500/5 to-transparent blur-3xl pointer-events-none -z-10"></div>
 
@@ -24,7 +25,7 @@ export default function Home() {
             {/* Top pill badge */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs sm:text-sm font-semibold mb-6 shadow-sm">
               <Sparkles className="w-4 h-4 text-blue-600" />
-              <span>AI Support 2.0 на базе Google GenAI</span>
+              <span>⚡ Умный ИИ-Консультант 2.0 для бизнеса</span>
             </div>
 
             {/* Exact Required Title */}
@@ -40,17 +41,17 @@ export default function Home() {
               Автоматизируйте 80% ответов клиентам, снизьте нагрузку на саппорт и не теряйте продажи
             </p>
 
-            {/* Exact Required Buttons */}
+            {/* Action Buttons to Auth Routes */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
               <Link
-                href="/dashboard"
+                href="/auth/register"
                 className="w-full sm:w-auto px-8 py-4 text-base font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
               >
                 <span>Попробовать бесплатно</span>
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
-                href="/dashboard"
+                href="/auth/login"
                 className="w-full sm:w-auto px-8 py-4 text-base font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all"
               >
                 <span>Войти в панель</span>
@@ -73,7 +74,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Hero Interactive Visuals Card Stack (Reference Inspired) */}
+            {/* Hero Interactive Visuals Card Stack */}
             <HeroVisual />
 
           </div>
@@ -82,8 +83,11 @@ export default function Home() {
         {/* STATS & METRICS SECTION */}
         <StatsSection />
 
-        {/* BRAND & WIDGET GUIDELINES CUSTOMIZER SECTION (Reference Inspired) */}
+        {/* BRAND & WIDGET GUIDELINES CUSTOMIZER SECTION */}
         <BrandGuidelines />
+
+        {/* PRICING SECTION */}
+        <PricingSection />
 
         {/* CTA BANNER */}
         <CTASection />
@@ -91,7 +95,7 @@ export default function Home() {
 
       <Footer />
 
-      {/* Real Floating AI Support Widget in Bottom Right */}
+      {/* Floating AI Support Widget in Bottom Right */}
       <WidgetPreview />
     </div>
   );

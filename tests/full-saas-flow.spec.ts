@@ -12,7 +12,7 @@ test.describe('Комплексный E2E сквозной тест AI Customer 
     }
   });
 
-  test('Полный пользовательский сценарий SaaS: Лендинг -> Дашборд -> База Знаний -> Виджет -> Оплата Pro', async ({ page }) => {
+  test('Полный пользовательский сценарий SaaS: Лендинг -> Авторизация -> Дашборд -> База Знаний -> Виджет -> Оплата Pro', async ({ page }) => {
 
     // 1. Переход на Главную страницу (Лендинг)
     await page.goto('/');
@@ -20,9 +20,14 @@ test.describe('Комплексный E2E сквозной тест AI Customer 
     await expect(title).toContainText('ИИ-Консультант для вашего сайта за 5 минут');
     await page.screenshot({ path: 'tests/screenshots/01-landing-page.png', fullPage: true });
 
-    // 2. Переход в Панель Управления (Dashboard)
+    // 2. Переход на Вход и Авторизацию в Дашборд
     await page.click('text=Войти в панель');
-    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page).toHaveURL(/\/auth\/login/);
+    await page.fill('input[type="email"]', 'alex@company.ru');
+    await page.fill('input[type="password"]', '123456');
+    await page.click('button[type="submit"]');
+    
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
     await expect(page.locator('h1')).toContainText('Панель управления');
     await page.screenshot({ path: 'tests/screenshots/02-dashboard-overview.png', fullPage: true });
 
