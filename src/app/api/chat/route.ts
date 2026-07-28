@@ -17,10 +17,21 @@ const INJECTION_PATTERNS = [
   /слей\s+базу/i,
 ];
 
+// Operator escalation keywords
+const OPERATOR_PATTERNS = [
+  /оператор/i,
+  /вызвать\s+оператора/i,
+  /человек/i,
+  /живой\s+менеджер/i,
+  /talk\s+to\s+human/i,
+  /human\s+agent/i,
+  /связать\s+с\s+менеджером/i,
+];
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { botId, message, config, subscription } = body;
+    const { botId, message, config, subscription, operatorRouting } = body;
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -41,7 +52,34 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2. Check usage limits for free users
+    // 2. Operator Escalation Request Check
+    const isOperatorRequest = OPERATOR_PATTERNS.some((pattern) => pattern.test(lowerMessage));
+    if (isOperatorRequest) {
+      let operatorLink = '#';
+      let dest = operatorRouting?.destination || '@support_store_bot';
+      const type = operatorRouting?.type || 'telegram';
+
+      if (type === 'telegram') {
+        const cleanDest = dest.replace('@', '');
+        operatorLink = `https://t.me/${cleanDest}`;
+      } else if (type === 'whatsapp') {
+        const cleanNum = dest.replace(/[^0-9]/g, '');
+        operatorLink = `https://wa.me/${cleanNum}`;
+      } else if (type === 'email') {
+        operatorLink = `mailto:${dest}`;
+      }
+
+      return NextResponse.json({
+        botId: botId || 'bot_shop_default',
+        response: `Переводжу ваш запрос на живого оператора. Вы можете сразу написать менеджеру напрямую:`,
+        operatorEscalation: true,
+        operatorType: type,
+        operatorLink: operatorLink,
+        operatorDestination: dest,
+      });
+    }
+
+    // 3. Check usage limits for free users
     const isPremium = subscription?.isPremium || false;
     const usageCount = subscription?.usageCount || 0;
 
@@ -158,6 +196,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       botId: botId || 'bot_shop_default',
       response: 'Извините, передаю ваш вопрос живому оператору.',
+      operatorEscalation: true,
+      operatorLink: operatorRouting?.destination ? `https://t.me/${operatorRouting.destination.replace('@', '')}` : '#',
     });
 
   } catch (error) {

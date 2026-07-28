@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Bot,
   LayoutDashboard,
@@ -29,61 +30,62 @@ import {
   ShieldCheck,
   ExternalLink,
   Layers,
-  Terminal,
   Globe,
-  Lock
+  LogOut,
+  User as UserIcon,
+  Moon,
+  Sun,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Headphones,
+  Sliders,
+  FolderPlus
 } from 'lucide-react';
 import { generateEmbedScript } from '@/lib/utils';
 import { getAIResponse } from '@/lib/gemini';
 import { WidgetConfig, FAQItem } from '@/types';
 import { getSubscription, UserSubscription } from '@/lib/usage';
-import { getOrCreateAccount, UserAccount } from '@/lib/auth';
-
-// Default initial config
-const defaultConfig: WidgetConfig = {
-  botName: 'Ассистент поддержки',
-  welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?',
-  primaryColor: '#2563eb',
-  toneOfVoice: 'friendly',
-  knowledgeText: 'График работы с 10:00 до 22:00. Инструкция по активации цифровых ключей: зайти в личный кабинет, ввести код. Возврат только при наличии видеозаписи.',
-  faqItems: [
-    {
-      id: 'faq-1',
-      question: 'Какой у вас график работы?',
-      answer: 'Наш магазин работает ежедневно с 10:00 до 22:00.'
-    },
-    {
-      id: 'faq-2',
-      question: 'Как активировать цифровой ключ?',
-      answer: 'Инструкция по активации цифровых ключей: зайдите в личный кабинет на нашем сайте и введите полученный код.'
-    },
-    {
-      id: 'faq-3',
-      question: 'Каковы условия возврата?',
-      answer: 'Возврат цифровых товаров осуществляется только при наличии полной видеозаписи процесса покупки и активации.'
-    }
-  ],
-  apiKey: ''
-};
+import { getProjects, saveProjects, getActiveProjectId, setActiveProjectId, createNewProject, Project } from '@/lib/projects';
+import { getLanguage, setLanguage, translations, Language } from '@/lib/i18n';
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'bot_settings' | 'knowledge' | 'embed' | 'settings'>('bot_settings');
+  const router = useRouter();
+
+  // Active Tab State
+  const [activeTab, setActiveTab] = useState<'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'billing' | 'overview'>('bot_settings');
   const [platformTab, setPlatformTab] = useState<'tilda' | 'wordpress' | 'shopify' | 'html'>('tilda');
 
-  // Account & Multi-tenant state
-  const [account, setAccount] = useState<UserAccount>({
-    id: 'usr_demo',
-    email: 'user@store.ru',
-    companyName: 'Мой интернет-магазин',
-    botId: 'bot_shop_98231a',
-    createdAt: new Date().toISOString(),
+  // Multi-Project Management State
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [isAddProjectModalOpen, setIsAddProjectModalOpen] = useState(false);
+  const [newProjName, setNewProjName] = useState('');
+  const [newProjCategory, setNewProjCategory] = useState('');
+  const [newProjDesc, setNewProjDesc] = useState('');
+
+  // User Profile & ChatGPT-Style Bottom-Left Menu State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userName, setUserName] = useState('Михаил');
+  const [userEmail, setUserEmail] = useState('mikhail@store.ru');
+
+  // Theme & Language State
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
+  const [lang, setLang] = useState<Language>('ru');
+
+  // Widget Configuration & Operator Routing State
+  const [config, setConfig] = useState<WidgetConfig>({
+    botName: 'Ассистент поддержки',
+    welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?',
+    primaryColor: '#2563eb',
+    toneOfVoice: 'friendly',
+    knowledgeText: 'График работы с 10:00 до 22:00. Инструкция по активации цифровых ключей: зайти в личный кабинет, ввести код.',
+    faqItems: []
   });
+  const [operatorType, setOperatorType] = useState<'telegram' | 'whatsapp' | 'email' | 'webhook'>('telegram');
+  const [operatorDest, setOperatorDest] = useState('@support_store_bot');
 
-  // Widget Configuration State
-  const [config, setConfig] = useState<WidgetConfig>(defaultConfig);
-  const [saveStatus, setSaveStatus] = useState<string | null>(null);
-
-  // Subscription State
   const [sub, setSub] = useState<UserSubscription>({
     isPremium: false,
     plan: 'Starter',
@@ -91,70 +93,140 @@ export default function DashboardPage() {
     maxFreeLimit: 30,
   });
 
-  // New FAQ inputs state
   const [newQuestion, setNewQuestion] = useState('');
   const [newAnswer, setNewAnswer] = useState('');
-
-  // Script Copy State & Notification Toast
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Integration Check Tool State
-  const [testDomain, setTestDomain] = useState('');
-  const [testResult, setTestResult] = useState<string | null>(null);
-
   // Live Test Chat Messages inside Preview
   const [testMessages, setTestMessages] = useState([
-    { sender: 'bot', text: defaultConfig.welcomeMessage }
+    { sender: 'bot', text: 'Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?' }
   ]);
   const [testInput, setTestInput] = useState('');
   const [testLoading, setTestLoading] = useState(false);
 
-  // Load configuration, account, and subscription on mount
+  // Load Projects, Active Project, User Profile, Language on mount
   useEffect(() => {
-    const acc = getOrCreateAccount();
-    setAccount(acc);
+    const loadedProjects = getProjects();
+    setProjects(loadedProjects);
+
+    const activeId = getActiveProjectId();
+    const current = loadedProjects.find(p => p.id === activeId) || loadedProjects[0];
+    if (current) {
+      setActiveProject(current);
+      setConfig(current.config);
+      setOperatorType(current.operatorRouting?.type || 'telegram');
+      setOperatorDest(current.operatorRouting?.destination || '@support_store_bot');
+      setTestMessages([{ sender: 'bot', text: current.config.welcomeMessage }]);
+    }
+
+    setSub(getSubscription());
+    setLang(getLanguage());
 
     try {
-      const saved = localStorage.getItem(`ai_widget_config_${acc.botId}`) || localStorage.getItem('ai_widget_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setConfig(parsed);
-        setTestMessages([{ sender: 'bot', text: parsed.welcomeMessage || defaultConfig.welcomeMessage }]);
+      const email = localStorage.getItem('ai_user_email');
+      if (email) {
+        setUserEmail(email);
+        const namePart = email.split('@')[0];
+        setUserName(namePart.charAt(0).toUpperCase() + namePart.slice(1));
       }
     } catch (e) {
-      console.warn('Could not parse ai_widget_config from localStorage', e);
+      console.warn('LocalStorage profile error:', e);
     }
-    setSub(getSubscription());
   }, []);
 
-  // Synchronize and save to localStorage
-  const saveConfigToStorage = (updatedConfig: WidgetConfig) => {
+  const t = translations[lang];
+
+  // Save current project updates
+  const saveCurrentProjectConfig = (updatedConfig: WidgetConfig, updatedOpType = operatorType, updatedOpDest = operatorDest) => {
     setConfig(updatedConfig);
+    if (!activeProject) return;
+
+    const updatedProject: Project = {
+      ...activeProject,
+      config: updatedConfig,
+      operatorRouting: {
+        type: updatedOpType,
+        destination: updatedOpDest,
+        enabled: true,
+      }
+    };
+
+    const updatedProjects = projects.map(p => p.id === activeProject.id ? updatedProject : p);
+    setProjects(updatedProjects);
+    setActiveProject(updatedProject);
+    saveProjects(updatedProjects);
+
     try {
-      localStorage.setItem(`ai_widget_config_${account.botId}`, JSON.stringify(updatedConfig));
+      localStorage.setItem(`ai_widget_config_${activeProject.botId}`, JSON.stringify(updatedConfig));
       localStorage.setItem('ai_widget_config', JSON.stringify(updatedConfig));
-      setSaveStatus('Настройки сохранены');
-      setTimeout(() => setSaveStatus(null), 3000);
     } catch (e) {
-      console.error('Error saving config to localStorage:', e);
+      console.warn('LocalStorage save error:', e);
     }
   };
 
-  // Update single field
   const handleConfigChange = <K extends keyof WidgetConfig>(field: K, value: WidgetConfig[K]) => {
     const updated = { ...config, [field]: value };
-    saveConfigToStorage(updated);
+    saveCurrentProjectConfig(updated);
     if (field === 'welcomeMessage') {
       setTestMessages([{ sender: 'bot', text: value as string }]);
     }
   };
 
-  // Reset to initial digital store demo data
-  const handleResetDefaults = () => {
-    saveConfigToStorage(defaultConfig);
-    setTestMessages([{ sender: 'bot', text: defaultConfig.welcomeMessage }]);
-    showToast('Сброшено к демо-данным!');
+  // Switch Active Project
+  const handleSelectProject = (projectId: string) => {
+    const target = projects.find(p => p.id === projectId);
+    if (target) {
+      setActiveProjectId(target.id);
+      setActiveProject(target);
+      setConfig(target.config);
+      setOperatorType(target.operatorRouting?.type || 'telegram');
+      setOperatorDest(target.operatorRouting?.destination || '@support_store_bot');
+      setTestMessages([{ sender: 'bot', text: target.config.welcomeMessage }]);
+      showToast(`Переключено на проект: ${target.name}`);
+    }
+  };
+
+  // Create New Project via Survey Modal
+  const handleCreateProjectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProjName.trim()) return;
+
+    const created = createNewProject(newProjName, newProjCategory, newProjDesc);
+    const updatedList = getProjects();
+    setProjects(updatedList);
+    setActiveProject(created);
+    setConfig(created.config);
+
+    setNewProjName('');
+    setNewProjCategory('');
+    setNewProjDesc('');
+    setIsAddProjectModalOpen(false);
+
+    showToast(`Проект "${created.name}" успешно создан!`);
+  };
+
+  // Toggle Language (RU <-> EN)
+  const handleToggleLanguage = () => {
+    const nextLang = lang === 'ru' ? 'en' : 'ru';
+    setLang(nextLang);
+    setLanguage(nextLang);
+    showToast(nextLang === 'ru' ? 'Язык изменен на Русский' : 'Language changed to English');
+  };
+
+  // Toggle Theme (Dark <-> Light)
+  const handleToggleTheme = () => {
+    setThemeMode(prev => prev === 'dark' ? 'light' : 'dark');
+    showToast(themeMode === 'dark' ? 'Переключено на Светлую тему' : 'Переключено на Тёмную тему');
+  };
+
+  // Logout Handler
+  const handleLogout = () => {
+    localStorage.removeItem('ai_user_logged_in');
+    showToast('Вы вышли из системы');
+    setTimeout(() => {
+      router.push('/');
+    }, 400);
   };
 
   // Add FAQ pair
@@ -172,7 +244,7 @@ export default function DashboardPage() {
       ...config,
       faqItems: [...(config.faqItems || []), newItem]
     };
-    saveConfigToStorage(updated);
+    saveCurrentProjectConfig(updated);
     setNewQuestion('');
     setNewAnswer('');
     showToast('Вопрос-Ответ успешно добавлен!');
@@ -184,32 +256,26 @@ export default function DashboardPage() {
       ...config,
       faqItems: config.faqItems.filter(item => item.id !== id)
     };
-    saveConfigToStorage(updated);
+    saveCurrentProjectConfig(updated);
     showToast('Вопрос-Ответ удален');
   };
 
   // Copy embed script tag
   const handleCopyScript = () => {
-    navigator.clipboard.writeText(generateEmbedScript(account.botId));
+    const botId = activeProject ? activeProject.botId : 'bot_proj_98231a';
+    navigator.clipboard.writeText(generateEmbedScript(botId));
     setCopied(true);
     showToast('Скопировано в буфер обмена!');
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Trigger Toast Notification
+  // Toast Trigger
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Test Domain Integration ping
-  const handleTestIntegration = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!testDomain.trim()) return;
-    setTestResult('Пингуем скрипт... Подключение подтверждено! Виджет готов к работе.');
-  };
-
-  // Handle live chat message submission in test widget preview
+  // Test live message inside preview widget
   const handleSendTestMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!testInput.trim() || testLoading) return;
@@ -225,7 +291,7 @@ export default function DashboardPage() {
     } catch {
       setTestMessages(prev => [
         ...prev,
-        { sender: 'bot', text: 'Ответ сформирован в соответствии с базой знаний.' }
+        { sender: 'bot', text: 'Ответ сформирован по базе знаний магазина.' }
       ]);
     } finally {
       setTestLoading(false);
@@ -233,7 +299,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+    <div className={`min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white ${
+      themeMode === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
+    }`}>
       
       {/* Toast Notification Container */}
       {toastMessage && (
@@ -243,40 +311,57 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Top Bar Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-40 shadow-xs">
+      {/* Top Header */}
+      <header className={`px-6 py-3.5 flex items-center justify-between sticky top-0 z-40 border-b ${
+        themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+      }`}>
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors text-xs font-semibold"
+            className="flex items-center gap-2 text-slate-400 hover:text-blue-500 transition-colors text-xs font-semibold"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>На главную</span>
           </Link>
-          <div className="h-5 w-px bg-slate-200"></div>
-          <div className="flex items-center gap-2.5">
-            <div
-              style={{ backgroundColor: config.primaryColor }}
-              className="w-8 h-8 rounded-lg text-white flex items-center justify-center font-bold shadow-xs transition-colors"
+          <div className="h-5 w-px bg-slate-800"></div>
+          <h1 className="sr-only">Панель управления ИИ-Бота</h1>
+          
+          {/* Active Project Dropdown & Multi-Project Switcher */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400 hidden sm:inline">{t.selectProject}:</span>
+            <select
+              value={activeProject?.id || ''}
+              onChange={(e) => handleSelectProject(e.target.value)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-xl border focus:outline-none ${
+                themeMode === 'dark'
+                  ? 'bg-slate-800 border-slate-700 text-white'
+                  : 'bg-slate-50 border-slate-300 text-slate-900'
+              }`}
             >
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-bold text-slate-900 text-sm leading-tight">Панель управления ИИ-Бота</h1>
-              <p className="text-[11px] text-slate-500">
-                Аккаунт: <span className="font-semibold text-slate-800">{account.companyName}</span> • Bot ID: <span className="font-mono text-blue-600 font-bold">{account.botId}</span>
-              </p>
-            </div>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.botId})
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setIsAddProjectModalOpen(true)}
+              className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t.addProject}</span>
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/billing"
-            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-1.5 bg-blue-600/10 text-blue-500 border border-blue-500/30 hover:bg-blue-600/20 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all"
           >
-            <CreditCard className="w-4 h-4 text-blue-600" />
-            <span>Тарифы ({sub.isPremium ? 'Pro' : 'Free'})</span>
+            <CreditCard className="w-4 h-4 text-blue-500" />
+            <span>{sub.isPremium ? 'Pro Business' : 'Free (Starter)'}</span>
           </Link>
 
           <button
@@ -289,154 +374,269 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Grid Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6">
+      {/* Main Content Layout */}
+      <div className="flex-1 flex max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6 relative">
         
-        {/* Navigation Sidebar */}
-        <aside className="w-64 bg-white rounded-2xl border border-slate-200 p-3 shadow-xs flex flex-col justify-between shrink-0 hidden md:flex">
+        {/* Left Sidebar (ChatGPT Style Dark Card with Bottom Profile) */}
+        <aside className={`w-64 rounded-2xl border p-3 flex flex-col justify-between shrink-0 hidden md:flex ${
+          themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+        }`}>
+          
           <div className="space-y-1">
-            <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Кабинет бизнеса</div>
+            <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              {activeProject?.name || 'Разделы'}
+            </div>
             
             <button
               onClick={() => setActiveTab('bot_settings')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'bot_settings'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <Palette className="w-4 h-4" />
-              <span>Настройки и цвет бота</span>
+              <span>{t.botSettingsTab}</span>
             </button>
 
             <button
               onClick={() => setActiveTab('knowledge')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'knowledge'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <BookOpen className="w-4 h-4" />
-              <span>База Знаний (FAQ)</span>
+              <span>{t.knowledgeTab}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('operator')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'operator'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Headphones className="w-4 h-4" />
+              <span>{t.operatorTab}</span>
             </button>
 
             <button
               onClick={() => setActiveTab('embed')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'embed'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <Code2 className="w-4 h-4" />
-              <span>Скрипт & Инструкция</span>
+              <span>{t.embedTab}</span>
             </button>
 
             <Link
               href="/dashboard/billing"
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
+              }`}
             >
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <span>Оплата & Тарифы</span>
+              <CreditCard className="w-4 h-4 text-emerald-400" />
+              <span>{t.billingTab}</span>
             </Link>
 
             <button
               onClick={() => setActiveTab('overview')}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'overview'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : themeMode === 'dark' ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
               <LayoutDashboard className="w-4 h-4" />
-              <span>Статистика</span>
+              <span>{t.statsTab}</span>
             </button>
           </div>
 
-          {/* Account Profile Box */}
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
-              <span className="flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                Защита базы данных
-              </span>
-              <span className="text-emerald-600 font-bold">Включена</span>
-            </div>
-            <p className="text-[10px] text-slate-400 leading-tight">
-              Ваш бот изолирован по ключу <code className="font-mono text-slate-700">{account.botId}</code>.
-            </p>
-          </div>
-        </aside>
-
-        {/* Dynamic Content Area + Live Preview Side-by-Side */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Main Controls Form Column (7 cols) */}
-          <div className="lg:col-span-7 space-y-6">
+          {/* CHATGPT-STYLE BOTTOM-LEFT USER PROFILE CARD (MATCHING USER SCREENSHOT EXACTLY) */}
+          <div className="relative pt-3 border-t border-slate-800/60">
             
-            {/* Limit Warning Banner */}
-            {!sub.isPremium && sub.usageCount >= sub.maxFreeLimit && (
-              <div className="bg-amber-500 text-white p-4 rounded-xl shadow-md flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Лимит обращений исчерпан (30/30). Обновите тарифный план!</span>
+            {/* User Profile Card Button */}
+            <div
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              className="w-full bg-slate-900/90 hover:bg-slate-800 border border-slate-800 rounded-2xl p-2.5 flex items-center justify-between cursor-pointer transition-all shadow-md group"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                  МЕ
                 </div>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className="font-bold text-xs text-white truncate group-hover:text-blue-400 transition-colors">
+                    {userName}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {sub.isPremium ? 'Pro Access' : 'Free'}
+                  </span>
+                </div>
+              </div>
+
+              {!sub.isPremium && (
                 <Link
                   href="/dashboard/billing"
-                  className="bg-white text-slate-900 px-3 py-1.5 rounded-lg text-xs font-bold shadow-xs hover:bg-slate-100"
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-blue-600 text-white text-[11px] font-bold rounded-xl transition-all border border-slate-700 hover:border-blue-500 shrink-0"
                 >
-                  Обновить
+                  {t.upgradeBtn}
                 </Link>
+              )}
+            </div>
+
+            {/* CHATGPT-STYLE POPUP MENU (EXACT MATCH TO USER ATTACHED SCREENSHOT) */}
+            {isProfileMenuOpen && (
+              <div className="absolute bottom-16 left-0 w-64 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-slate-200 text-xs font-medium space-y-1">
+                
+                {/* Menu Header User */}
+                <div className="px-3 py-2.5 flex items-center justify-between border-b border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                      МЕ
+                    </div>
+                    <div>
+                      <div className="font-bold text-white text-xs">{userName}</div>
+                      <div className="text-[10px] text-slate-400">{sub.isPremium ? 'Pro Business' : 'Free'}</div>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </div>
+
+                {/* Menu Item 1: Изменить план */}
+                <Link
+                  href="/dashboard/billing"
+                  onClick={() => setIsProfileMenuOpen(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>{t.changePlan}</span>
+                </Link>
+
+                {/* Menu Item 2: Персонализация (Theme Toggle) */}
+                <button
+                  onClick={handleToggleTheme}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors text-left"
+                >
+                  {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+                  <span>{t.personalization} ({themeMode === 'dark' ? 'Тёмная' : 'Светлая'})</span>
+                </button>
+
+                {/* Menu Item 3: Профиль */}
+                <button
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    setIsProfileModalOpen(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors text-left"
+                >
+                  <UserIcon className="w-4 h-4 text-blue-400" />
+                  <span>{t.profile}</span>
+                </button>
+
+                {/* Menu Item 4: Настройки (Language Toggle) */}
+                <button
+                  onClick={handleToggleLanguage}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors text-left"
+                >
+                  <Settings className="w-4 h-4 text-slate-400" />
+                  <span>{t.settings} ({lang.toUpperCase()})</span>
+                </button>
+
+                <div className="border-t border-slate-800 my-1"></div>
+
+                {/* Menu Item 5: Справка */}
+                <button
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    setActiveTab('embed');
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-800 text-slate-200 hover:text-white transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <HelpCircle className="w-4 h-4 text-emerald-400" />
+                    <span>{t.help}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </button>
+
+                {/* Menu Item 6: Выйти */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <LogOut className="w-4 h-4" />
+                    <span>{t.logout}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-red-500/60" />
+                </button>
+
               </div>
             )}
 
-            {/* TAB 1: BOT SETTINGS FORM */}
+          </div>
+
+        </aside>
+
+        {/* Dynamic Main Workspace (7 cols) */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <div className="lg:col-span-7 space-y-6">
+            
+            {/* TAB 1: BOT SETTINGS */}
             {activeTab === 'bot_settings' && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs animate-in fade-in duration-200">
+              <div className={`rounded-2xl border p-6 space-y-6 ${
+                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-blue-600" />
-                    Настройки личности и стиля бота
+                  <h2 className="font-bold text-base flex items-center gap-2">
+                    <Palette className="w-5 h-5 text-blue-500" />
+                    {t.botSettingsTab}
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Изменения мгновенно отображаются в превью и привязываются к вашему уникальному Bot ID: <span className="font-mono text-blue-600 font-bold">{account.botId}</span>.
+                  <p className="text-xs text-slate-400 mt-1">
+                    Проект: <span className="font-bold text-blue-400">{activeProject?.name}</span> (ID: <span className="font-mono">{activeProject?.botId}</span>)
                   </p>
                 </div>
 
-                {/* Bot Name Input */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Имя бота</label>
+                  <label className="block text-xs font-bold mb-1">Имя бота</label>
                   <input
                     id="dash-bot-name-input"
                     type="text"
                     value={config.botName}
                     onChange={(e) => handleConfigChange('botName', e.target.value)}
-                    placeholder="Ассистент поддержки"
-                    className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-semibold ${
+                      themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
                   />
                 </div>
 
-                {/* Welcome Message Input */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Приветственное сообщение</label>
+                  <label className="block text-xs font-bold mb-1">Приветственное сообщение</label>
                   <textarea
                     id="dash-welcome-msg-input"
                     rows={3}
                     value={config.welcomeMessage}
                     onChange={(e) => handleConfigChange('welcomeMessage', e.target.value)}
-                    placeholder="Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?"
-                    className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs ${
+                      themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
                   />
                 </div>
 
-                {/* Tone of Voice Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">Системный тон общения ИИ</label>
+                  <label className="block text-xs font-bold mb-2">Системный тон общения ИИ</label>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { id: 'polite', label: 'Вежливый', desc: 'Доброжелательный тон' },
-                      { id: 'formal', label: 'Официальный', desc: 'Строгий B2B стиль' },
+                      { id: 'polite', label: 'Вежливый', desc: 'Доброжелательный' },
+                      { id: 'formal', label: 'Официальный', desc: 'Строгий B2B' },
                       { id: 'friendly', label: 'Дружелюбный', desc: 'Открытый стиль' }
                     ].map((tone) => (
                       <button
@@ -445,40 +645,31 @@ export default function DashboardPage() {
                         onClick={() => handleConfigChange('toneOfVoice', tone.id as WidgetConfig['toneOfVoice'])}
                         className={`p-3 rounded-xl border text-left transition-all ${
                           config.toneOfVoice === tone.id
-                            ? 'bg-blue-50 border-blue-600 text-blue-800 ring-2 ring-blue-500/20'
-                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
+                            ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                            : themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
                         }`}
                       >
                         <div className="font-bold text-xs">{tone.label}</div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">{tone.desc}</div>
+                        <div className="text-[10px] opacity-80 mt-0.5">{tone.desc}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Color Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">Цвет кнопки и виджета чата</label>
+                  <label className="block text-xs font-bold mb-2">Цвет кнопки виджета</label>
                   <div className="flex items-center gap-3">
-                    {[
-                      { color: '#2563eb', name: 'Синий' },
-                      { color: '#059669', name: 'Изумрудный' },
-                      { color: '#7c3aed', name: 'Фиолетовый' },
-                      { color: '#dc2626', name: 'Красный' },
-                      { color: '#0f172a', name: 'Темно-серый' },
-                    ].map((item) => (
+                    {['#2563eb', '#059669', '#7c3aed', '#dc2626', '#0f172a'].map((color) => (
                       <button
-                        key={item.color}
+                        key={color}
                         type="button"
-                        onClick={() => handleConfigChange('primaryColor', item.color)}
-                        style={{ backgroundColor: item.color }}
+                        onClick={() => handleConfigChange('primaryColor', color)}
+                        style={{ backgroundColor: color }}
                         className={`w-9 h-9 rounded-xl border-2 transition-all flex items-center justify-center text-white ${
-                          config.primaryColor === item.color
-                            ? 'scale-110 ring-4 ring-blue-500/30 border-white'
-                            : 'border-transparent opacity-90 hover:opacity-100'
+                          config.primaryColor === color ? 'scale-110 ring-4 ring-blue-500/30 border-white' : 'border-transparent'
                         }`}
                       >
-                        {config.primaryColor === item.color && <Check className="w-4 h-4" />}
+                        {config.primaryColor === color && <Check className="w-4 h-4" />}
                       </button>
                     ))}
                   </div>
@@ -489,91 +680,87 @@ export default function DashboardPage() {
 
             {/* TAB 2: KNOWLEDGE BASE */}
             {activeTab === 'knowledge' && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs animate-in fade-in duration-200">
+              <div className={`rounded-2xl border p-6 space-y-6 ${
+                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-blue-600" />
-                    Интерактивная База Знаний (Knowledge Base)
+                  <h2 className="font-bold text-base flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-blue-500" />
+                    {t.knowledgeTab}
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Данные строго защищены и используются только для ответов клиентам вашего аккаунта ({account.botId}).
+                  <p className="text-xs text-slate-400 mt-1">
+                    База знаний проекта <span className="font-bold text-blue-400">{activeProject?.name}</span> (ID: <span className="font-mono">{activeProject?.botId}</span>).
                   </p>
                 </div>
 
-                {/* Security Badge Alert */}
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center gap-2.5 text-xs text-emerald-800">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Включена защита от утечки данных: ИИ отвечает строго по вашему регламенту и не выдает внутренние данные.</span>
-                </div>
-
-                {/* Main Knowledge Textarea */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Основной регламент и информация магазина (Textarea)
-                  </label>
+                  <label className="block text-xs font-bold mb-1">Регламенты и информация магазина</label>
                   <textarea
                     id="dash-knowledge-textarea"
                     rows={5}
                     value={config.knowledgeText}
                     onChange={(e) => handleConfigChange('knowledgeText', e.target.value)}
-                    placeholder="Введите графики, условия доставки, правила возврата..."
-                    className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-mono"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono leading-relaxed ${
+                      themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
                   />
                 </div>
 
-                {/* FAQ Pairs Manager */}
-                <div className="pt-4 border-t border-slate-200 space-y-4">
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                    Частые пары Вопрос-Ответ (FAQ)
-                  </h3>
+                <div className="pt-4 border-t border-slate-800 space-y-4">
+                  <h3 className="font-bold text-xs uppercase tracking-wider">Частые пары Вопрос-Ответ (FAQ)</h3>
 
-                  {/* Add New FAQ Form */}
-                  <form onSubmit={handleAddFAQ} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <div className="text-xs font-semibold text-slate-800">Добавить новую пару FAQ</div>
+                  <form onSubmit={handleAddFAQ} className={`p-4 rounded-xl border space-y-3 ${
+                    themeMode === 'dark' ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}>
                     <input
                       id="dash-faq-question-input"
                       type="text"
                       value={newQuestion}
                       onChange={(e) => setNewQuestion(e.target.value)}
-                      placeholder="Вопрос (например: 'Как получить скидку?')"
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 bg-white"
+                      placeholder="Вопрос..."
+                      className={`w-full border rounded-lg px-3 py-2 text-xs ${
+                        themeMode === 'dark' ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
                     />
                     <textarea
                       id="dash-faq-answer-input"
                       rows={2}
                       value={newAnswer}
                       onChange={(e) => setNewAnswer(e.target.value)}
-                      placeholder="Точный ответ ИИ..."
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 bg-white"
+                      placeholder="Ответ ИИ..."
+                      className={`w-full border rounded-lg px-3 py-2 text-xs ${
+                        themeMode === 'dark' ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
                     />
                     <button
                       id="dash-add-faq-btn"
                       type="submit"
                       disabled={!newQuestion.trim() || !newAnswer.trim()}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Добавить Вопрос-Ответ</span>
+                      <span>Добавить пара FAQ</span>
                     </button>
                   </form>
 
-                  {/* Existing FAQ List */}
                   <div className="space-y-3">
                     {config.faqItems?.map((item) => (
-                      <div key={item.id} className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-1 relative group">
+                      <div key={item.id} className={`p-3.5 rounded-xl border space-y-1 relative ${
+                        themeMode === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                      }`}>
                         <div className="flex items-start justify-between">
-                          <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                            <HelpCircle className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <div className="font-bold text-xs flex items-center gap-1.5">
+                            <HelpCircle className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                             <span>{item.question}</span>
                           </div>
                           <button
                             onClick={() => handleDeleteFAQ(item.id)}
-                            className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                            className="text-slate-400 hover:text-red-500 p-1"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p className="text-xs text-slate-600 pl-5">{item.answer}</p>
+                        <p className="text-xs text-slate-400 pl-5">{item.answer}</p>
                       </div>
                     ))}
                   </div>
@@ -582,236 +769,163 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 3: EMBED SCRIPT & PLATFORM INSTRUCTIONS */}
-            {activeTab === 'embed' && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs animate-in fade-in duration-200">
-                
+            {/* TAB 3: OPERATOR ESCALATION ROUTING */}
+            {activeTab === 'operator' && (
+              <div className={`rounded-2xl border p-6 space-y-6 ${
+                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                    <Code2 className="w-5 h-5 text-blue-600" />
-                    Ваш встраиваемый код & Инструкция по установке
+                  <h2 className="font-bold text-base flex items-center gap-2">
+                    <Headphones className="w-5 h-5 text-blue-500" />
+                    {t.operatorTitle}
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Ваш уникальный идентификатор бота: <span className="font-mono text-blue-600 font-bold">{account.botId}</span>. Каждый аккаунт имеет изолированный код!
+                  <p className="text-xs text-slate-400 mt-1">{t.operatorDesc}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold mb-2">Канал связи для перевода:</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { id: 'telegram', label: 'Telegram Бот / Чат', desc: '@support_bot' },
+                        { id: 'whatsapp', label: 'WhatsApp Business', desc: '+7 (900) 123-45-67' },
+                        { id: 'email', label: 'Support Email', desc: 'help@company.com' },
+                        { id: 'webhook', label: 'Webhook URL', desc: 'https://api.com/tickets' },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setOperatorType(item.id as any);
+                            saveCurrentProjectConfig(config, item.id as any, operatorDest);
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            operatorType === item.id
+                              ? 'bg-blue-600 text-white border-blue-500'
+                              : themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                          }`}
+                        >
+                          <div className="font-bold text-xs">{item.label}</div>
+                          <div className="text-[10px] opacity-80 mt-0.5">{item.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold mb-1">Назначение (Юзернейм / Номер / Email)</label>
+                    <input
+                      type="text"
+                      value={operatorDest}
+                      onChange={(e) => {
+                        setOperatorDest(e.target.value);
+                        saveCurrentProjectConfig(config, operatorType, e.target.value);
+                      }}
+                      placeholder="@my_support_bot"
+                      className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono ${
+                        themeMode === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 text-xs space-y-1">
+                    <div className="font-bold text-blue-400">💡 Как это работает в виджете:</div>
+                    <p className="text-slate-300 leading-relaxed">
+                      При клике клиента на кнопку <b>"Вызвать оператора"</b> виджет перенаправит его на указанный Telegram / WhatsApp аккаунт.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 4: EMBED SCRIPT */}
+            {activeTab === 'embed' && (
+              <div className={`rounded-2xl border p-6 space-y-6 ${
+                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div>
+                  <h2 className="font-bold text-base flex items-center gap-2">
+                    <Code2 className="w-5 h-5 text-blue-500" />
+                    Встраиваемый код виджета
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Уникальный код для проекта <span className="font-bold text-blue-400">{activeProject?.name}</span> (Bot ID: <span className="font-mono text-emerald-400 font-bold">{activeProject?.botId}</span>):
                   </p>
                 </div>
 
-                {/* Styled Code Box with Unique botId */}
-                <div className="space-y-2">
-                  <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                    <span>Персональная строка подключения (1 клик копирование):</span>
-                    <span className="text-[11px] text-emerald-600 font-semibold">Уникальный ключ привязан</span>
-                  </div>
-
-                  <div className="relative">
-                    <pre className="bg-slate-900 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-slate-800 overflow-x-auto leading-relaxed shadow-lg">
-                      <code>{generateEmbedScript(account.botId)}</code>
-                    </pre>
-                    
-                    <button
-                      onClick={handleCopyScript}
-                      className="mt-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-300" />
-                          <span>Скопировано в буфер обмена!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Скопировать скрипт для вашего сайта</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                <div className="relative">
+                  <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-slate-800 overflow-x-auto leading-relaxed shadow-lg">
+                    <code>{generateEmbedScript(activeProject?.botId || 'bot_proj_98231a')}</code>
+                  </pre>
+                  
+                  <button
+                    onClick={handleCopyScript}
+                    className="mt-3 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-300" />
+                        <span>Скопировано в буфер!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Скопировать код виджета</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-
-                {/* Step-by-Step Installation Guides by Platform */}
-                <div className="pt-4 border-t border-slate-200 space-y-4">
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    📖 Подробные пошаговые инструкции по платформам
-                  </h3>
-
-                  {/* Platform Selector Tabs */}
-                  <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1 text-xs font-semibold">
-                    <button
-                      onClick={() => setPlatformTab('tilda')}
-                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
-                        platformTab === 'tilda'
-                          ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      🔷 Tilda Publishing
-                    </button>
-
-                    <button
-                      onClick={() => setPlatformTab('wordpress')}
-                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
-                        platformTab === 'wordpress'
-                          ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      🟢 WordPress
-                    </button>
-
-                    <button
-                      onClick={() => setPlatformTab('shopify')}
-                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
-                        platformTab === 'shopify'
-                          ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      🛍️ Shopify / Webflow
-                    </button>
-
-                    <button
-                      onClick={() => setPlatformTab('html')}
-                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
-                        platformTab === 'html'
-                          ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                          : 'border-transparent text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      ⚡ HTML / Custom Code
-                    </button>
-                  </div>
-
-                  {/* Instruction Content per platform */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-2.5">
-                    {platformTab === 'tilda' && (
-                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>Скопируйте ваш персональный скрипт выше (кнопка <b>Скопировать скрипт</b>).</li>
-                        <li>Перейдите в редактор вашего сайта на <b>Tilda</b>.</li>
-                        <li>Добавьте блок <b>T123 «HTML-код»</b> (находится в категории «Другое») в футере или на нужных страницах.</li>
-                        <li>Нажмите кнопку <b>Контент</b> у блока T123 и вставьте скопированный скрипт.</li>
-                        <li>Нажмите <b>Сохранить и закрыть</b>, затем <b>Опубликовать все страницы</b>. Виджет появится в правом нижнем углу сайта!</li>
-                      </ol>
-                    )}
-
-                    {platformTab === 'wordpress' && (
-                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>Зайдите в панель администратора вашего сайта на <b>WordPress</b>.</li>
-                        <li>Перейдите в раздел <b>Плагины</b> → <b>Добавить новый</b> и найдите плагин <i>«Header and Footer Scripts»</i> (или добавьте через <i>footer.php</i>).</li>
-                        <li>Вставьте скопированный скрипт в поле <b>Scripts in Footer</b>.</li>
-                        <li>Нажмите кнопку <b>Сохранить изменения</b>. Готово!</li>
-                      </ol>
-                    )}
-
-                    {platformTab === 'shopify' && (
-                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>В панели <b>Shopify / Webflow</b> перейдите в <b>Online Store</b> → <b>Themes</b> → <b>Edit code</b>.</li>
-                        <li>Найдите файл шаблона <code>theme.liquid</code> (или раздел Custom Code в Webflow).</li>
-                        <li>Вставьте скопированную строку перед закрывающим тегом <code>&lt;/body&gt;</code>.</li>
-                        <li>Нажмите кнопку <b>Save (Сохранить)</b>.</li>
-                      </ol>
-                    )}
-
-                    {platformTab === 'html' && (
-                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>Откройте исходный HTML-файл вашей страницы.</li>
-                        <li>Вставьте скопированный тег <code>&lt;script src="..." data-bot-id="..." defer&gt;&lt;/script&gt;</code> перед <code>&lt;/body&gt;</code>.</li>
-                        <li>Сохраните файл и загрузите на ваш хостинг.</li>
-                      </ol>
-                    )}
-                  </div>
-                </div>
-
-                {/* Domain Integration Testing Tool */}
-                <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 text-xs space-y-3">
-                  <div className="font-bold text-blue-900 flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-blue-600" />
-                    Инструмент проверки связи на вашем сайте
-                  </div>
-                  <form onSubmit={handleTestIntegration} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={testDomain}
-                      onChange={(e) => setTestDomain(e.target.value)}
-                      placeholder="https://my-store.ru"
-                      className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 bg-white"
-                    />
-                    <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs"
-                    >
-                      Проверить подключение
-                    </button>
-                  </form>
-                  {testResult && (
-                    <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg font-semibold text-[11px] flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{testResult}</span>
-                    </div>
-                  )}
-                </div>
-
               </div>
             )}
 
-            {/* TAB 4: OVERVIEW & STATS */}
+            {/* TAB 5: STATS */}
             {activeTab === 'overview' && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs animate-in fade-in duration-200">
-                <h2 className="font-bold text-slate-900 text-base">Статистика ИИ-Ассистента ({account.botId})</h2>
+              <div className={`rounded-2xl border p-6 space-y-6 ${
+                themeMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <h2 className="font-bold text-base">Статистика проекта {activeProject?.name}</h2>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="text-xs text-slate-500 font-semibold mb-1">Обработано вопросов</div>
-                    <div className="text-2xl font-black text-slate-900">1,482</div>
+                  <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
+                    <div className="text-xs text-slate-400 font-semibold mb-1">Обработано вопросов</div>
+                    <div className="text-2xl font-black text-white">1,482</div>
                   </div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <div className="text-xs text-slate-500 font-semibold mb-1">Процент автоматизации</div>
-                    <div className="text-2xl font-black text-emerald-600">84.2%</div>
+                  <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
+                    <div className="text-xs text-slate-400 font-semibold mb-1">Автоматизация ИИ</div>
+                    <div className="text-2xl font-black text-emerald-400">84.2%</div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 5: AI MODEL & SETTINGS */}
-            {activeTab === 'settings' && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-xs animate-in fade-in duration-200">
-                <h2 className="font-bold text-slate-900 text-base">Настройки Умного ИИ & API</h2>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ваш ключ API (опционально)</label>
-                  <input
-                    type="password"
-                    value={config.apiKey || ''}
-                    onChange={(e) => handleConfigChange('apiKey', e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900"
-                  />
                 </div>
               </div>
             )}
 
           </div>
 
-          {/* Right Preview Column (5 cols) - Realtime Reactivity Widget */}
+          {/* Right Preview Column (5 cols) */}
           <div className="lg:col-span-5">
-            <div className="sticky top-20 bg-slate-900/5 rounded-2xl p-5 border border-slate-200/80 flex flex-col items-center justify-center">
+            <div className={`sticky top-20 rounded-2xl p-5 border flex flex-col items-center justify-center ${
+              themeMode === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-200/60 border-slate-300'
+            }`}>
               
               <div className="w-full flex items-center justify-between mb-4">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                   Интерактивное Превью
                 </span>
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                  ID: {account.botId}
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                  {activeProject?.botId}
                 </span>
               </div>
 
               {/* Responsive Live Widget Card */}
-              <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden h-[440px] transition-all">
+              <div className="w-full max-w-sm bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden h-[440px]">
                 
                 {/* Dynamic Header */}
                 <div
                   style={{ backgroundColor: config.primaryColor }}
-                  className="p-4 text-white flex items-center justify-between transition-colors shadow-sm"
+                  className="p-4 text-white flex items-center justify-between shadow-sm"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-xs font-bold text-sm">
+                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -858,14 +972,14 @@ export default function DashboardPage() {
                     type="text"
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
-                    placeholder="Протестируйте ответ ИИ..."
+                    placeholder="Задайте вопрос превью..."
                     className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     type="submit"
                     disabled={testLoading || !testInput.trim()}
                     style={{ backgroundColor: config.primaryColor }}
-                    className="text-white p-2 rounded-xl text-xs font-semibold disabled:opacity-50 transition-opacity"
+                    className="text-white p-2 rounded-xl text-xs font-semibold disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -878,6 +992,128 @@ export default function DashboardPage() {
 
         </div>
       </div>
+
+      {/* CREATE NEW PROJECT SURVEY MODAL */}
+      {isAddProjectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
+            <button
+              onClick={() => setIsAddProjectModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
+                <FolderPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Создание нового проекта</h3>
+                <p className="text-xs text-slate-400">Каждый проект получает уникальный Bot ID и отдельный скрипт</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateProjectSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Название проекта / сайта</label>
+                <input
+                  type="text"
+                  required
+                  value={newProjName}
+                  onChange={(e) => setNewProjName(e.target.value)}
+                  placeholder="Магазин Ключей #2"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Сфера деятельности / Тематика</label>
+                <input
+                  type="text"
+                  value={newProjCategory}
+                  onChange={(e) => setNewProjCategory(e.target.value)}
+                  placeholder="Цифровые товары / Ритейл / Одежда"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Краткое описание проекта</label>
+                <textarea
+                  rows={2}
+                  value={newProjDesc}
+                  onChange={(e) => setNewProjDesc(e.target.value)}
+                  placeholder="Опишите, чем занимается ваш сайт..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 font-bold text-xs rounded-xl shadow-md"
+                >
+                  Создать проект
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsAddProjectModalOpen(false)}
+                  className="px-4 py-3 bg-slate-800 text-slate-300 font-semibold text-xs rounded-xl hover:bg-slate-700"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER PROFILE MODAL */}
+      {isProfileModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
+            <button
+              onClick={() => setIsProfileModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-purple-600 text-white font-bold text-base flex items-center justify-center">
+                МЕ
+              </div>
+              <div>
+                <h3 className="font-bold text-base">{userName}</h3>
+                <p className="text-xs text-slate-400">{userEmail}</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/60 p-4 rounded-xl border border-slate-700/80 text-xs space-y-2">
+              <div className="flex justify-between font-semibold">
+                <span>Текущий тариф:</span>
+                <span className="text-emerald-400">{sub.isPremium ? 'Pro Business' : 'Free (Starter)'}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Всего проектов:</span>
+                <span className="text-white font-bold">{projects.length}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Язык системы:</span>
+                <span className="text-white uppercase font-bold">{lang}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsProfileModalOpen(false)}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

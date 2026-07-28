@@ -148,6 +148,22 @@
       align-self: flex-end;
       border-bottom-right-radius: 4px;
     }
+    .ai-widget-op-btn {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 8px 14px;
+      background-color: #2563eb;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+      transition: background-color 0.2s ease;
+    }
+    .ai-widget-op-btn:hover {
+      background-color: #1d4ed8;
+    }
     .ai-widget-input-area {
       padding: 12px;
       background: #ffffff;
@@ -248,10 +264,21 @@
   const messagesList = document.getElementById('ai-widget-messages-list');
   const submitBtn = document.getElementById('ai-widget-submit-btn');
 
-  const appendMessage = (sender, text) => {
+  const appendMessage = (sender, text, operatorLink) => {
     const msgEl = document.createElement('div');
     msgEl.className = `ai-widget-message ${sender}`;
-    msgEl.textContent = text;
+    msgEl.innerHTML = text;
+
+    if (operatorLink && operatorLink !== '#') {
+      const btn = document.createElement('a');
+      btn.href = operatorLink;
+      btn.target = '_blank';
+      btn.className = 'ai-widget-op-btn';
+      btn.textContent = '💬 Написать оператору напрямую';
+      msgEl.appendChild(document.createElement('br'));
+      msgEl.appendChild(btn);
+    }
+
     messagesList.appendChild(msgEl);
     messagesList.scrollTop = messagesList.scrollHeight;
   };
@@ -295,7 +322,7 @@
       if (loadingEl) loadingEl.remove();
 
       const botReply = data.response || 'Извините, передаю ваш вопрос живому оператору.';
-      appendMessage('bot', botReply);
+      appendMessage('bot', botReply, data.operatorLink);
       history.push({ sender: 'bot', text: botReply });
     } catch (err) {
       console.error('[AI Widget] API call error:', err);
