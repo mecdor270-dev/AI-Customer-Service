@@ -37,7 +37,6 @@
   // 2. Fetch Remote Config from Server API
   async function loadRemoteConfig() {
     try {
-      // First check local override if on same origin (e.g. preview)
       const localOverride = localStorage.getItem(`ai_bot_config_${botId}`) || localStorage.getItem('ai_widget_config');
       if (localOverride) {
         config = Object.assign({}, config, JSON.parse(localOverride));
@@ -114,7 +113,7 @@
         right: 24px;
         width: 380px;
         max-width: calc(100vw - 32px);
-        height: 520px;
+        height: 540px;
         max-height: calc(100vh - 120px);
         background: #ffffff;
         border-radius: 20px;
@@ -215,7 +214,7 @@
         gap: 12px;
       }
       .ai-widget-message {
-        max-width: 86%;
+        max-width: 88%;
         padding: 11px 15px;
         border-radius: 16px;
         font-size: 13.5px;
@@ -242,24 +241,68 @@
         border-bottom-right-radius: 4px;
         box-shadow: 0 2px 8px rgba(37,99,235,0.25);
       }
-      .ai-widget-op-btn {
-        display: inline-flex;
+      .ai-widget-op-card {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .ai-widget-op-channel-item {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .ai-widget-op-channel-header {
+        font-weight: 700;
+        font-size: 12px;
+        color: #1e293b;
+        display: flex;
         align-items: center;
+        justify-content: space-between;
+      }
+      .ai-widget-op-channel-value {
+        font-family: monospace;
+        font-size: 12px;
+        color: #2563eb;
+        word-break: break-all;
+        background: #ffffff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+      }
+      .ai-widget-op-channel-actions {
+        display: flex;
         gap: 6px;
-        margin-top: 6px;
-        padding: 8px 14px;
-        background-color: #2563eb;
+        margin-top: 4px;
+      }
+      .ai-widget-op-action-btn {
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        border: none;
+        transition: background 0.15s ease;
+      }
+      .ai-widget-op-copy-btn {
+        background: #e2e8f0;
+        color: #334155;
+      }
+      .ai-widget-op-copy-btn:hover {
+        background: #cbd5e1;
+      }
+      .ai-widget-op-link-btn {
+        background: #2563eb;
         color: #ffffff !important;
         text-decoration: none;
-        font-weight: 600;
-        font-size: 12px;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(37,99,235,0.25);
-        transition: background-color 0.2s ease, transform 0.15s ease;
+        display: inline-block;
       }
-      .ai-widget-op-btn:hover {
-        background-color: #1d4ed8;
-        transform: translateY(-1px);
+      .ai-widget-op-link-btn:hover {
+        background: #1d4ed8;
       }
       .ai-widget-input-area {
         padding: 12px 14px;
@@ -360,7 +403,6 @@
 
     // Interactions
     let isOpen = false;
-    const history = [{ sender: 'bot', text: config.welcomeMessage }];
 
     const toggleWidget = () => {
       isOpen = !isOpen;
@@ -380,65 +422,89 @@
     const messagesList = document.getElementById('ai-widget-messages-list');
     const submitBtn = document.getElementById('ai-widget-submit-btn');
 
-    const appendMessage = (sender, text, operatorLink, operatorChannels) => {
+    const appendMessage = (sender, text, operatorChannels) => {
       const msgEl = document.createElement('div');
       msgEl.className = `ai-widget-message ${sender}`;
       msgEl.innerHTML = text;
 
       if (operatorChannels && Array.isArray(operatorChannels) && operatorChannels.length > 0) {
-        const btnContainer = document.createElement('div');
-        btnContainer.style.marginTop = '6px';
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'ai-widget-op-card';
+
         operatorChannels.forEach(ch => {
-          const btn = document.createElement('a');
-          btn.href = ch.link;
-          btn.target = '_blank';
-          btn.className = 'ai-widget-op-btn';
-          btn.style.marginRight = '6px';
-          btn.style.marginBottom = '6px';
-          btn.textContent = ch.label;
-          btnContainer.appendChild(btn);
+          const item = document.createElement('div');
+          item.className = 'ai-widget-op-channel-item';
+
+          const itemHeader = document.createElement('div');
+          itemHeader.className = 'ai-widget-op-channel-header';
+          itemHeader.textContent = ch.label || ch.type;
+
+          const itemVal = document.createElement('div');
+          itemVal.className = 'ai-widget-op-channel-value';
+          itemVal.textContent = ch.value || ch.link;
+
+          const actionsRow = document.createElement('div');
+          actionsRow.className = 'ai-widget-op-channel-actions';
+
+          // Copy button
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'ai-widget-op-action-btn ai-widget-op-copy-btn';
+          copyBtn.textContent = '📋 Копировать';
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(ch.value || ch.link);
+            copyBtn.textContent = '✓ Скопировано!';
+            setTimeout(() => { copyBtn.textContent = '📋 Копировать'; }, 2000);
+          };
+          actionsRow.appendChild(copyBtn);
+
+          // Direct link button
+          if (ch.link && ch.link !== '#') {
+            const linkBtn = document.createElement('a');
+            linkBtn.href = ch.link;
+            linkBtn.target = '_blank';
+            linkBtn.className = 'ai-widget-op-action-btn ai-widget-op-link-btn';
+            linkBtn.textContent = 'Перейти ↗';
+            actionsRow.appendChild(linkBtn);
+          }
+
+          item.appendChild(itemHeader);
+          item.appendChild(itemVal);
+          item.appendChild(actionsRow);
+          cardContainer.appendChild(item);
         });
-        msgEl.appendChild(btnContainer);
-      } else if (operatorLink && operatorLink !== '#') {
-        const btn = document.createElement('a');
-        btn.href = operatorLink;
-        btn.target = '_blank';
-        btn.className = 'ai-widget-op-btn';
-        btn.textContent = '💬 Написать оператору напрямую';
-        msgEl.appendChild(document.createElement('br'));
-        msgEl.appendChild(btn);
+
+        msgEl.appendChild(cardContainer);
       }
 
       messagesList.appendChild(msgEl);
       messagesList.scrollTop = messagesList.scrollHeight;
     };
 
-    // Helper to trigger direct operator escalation
+    // Helper to trigger direct operator contact details presentation
     const triggerOperatorCall = () => {
       appendMessage('user', '👤 Вызвать оператора');
-      history.push({ sender: 'user', text: 'Вызвать оператора' });
 
       const opData = config.operatorRouting || {};
       const channels = [];
 
       const tg = opData.telegram || opData.destination || '@support_store_bot';
       if (tg) {
-        channels.push({ type: 'telegram', label: '💬 Написать в Telegram', link: `https://t.me/${tg.replace('@', '')}` });
+        const cleanTg = tg.startsWith('@') ? tg : `@${tg}`;
+        channels.push({ type: 'telegram', label: '💬 Telegram поддержки', value: cleanTg, link: `https://t.me/${cleanTg.replace('@', '')}` });
       }
       if (opData.whatsapp) {
-        channels.push({ type: 'whatsapp', label: '💚 Написать в WhatsApp', link: `https://wa.me/${opData.whatsapp.replace(/[^0-9]/g, '')}` });
+        channels.push({ type: 'whatsapp', label: '💚 WhatsApp поддержки', value: opData.whatsapp, link: `https://wa.me/${opData.whatsapp.replace(/[^0-9]/g, '')}` });
       }
       if (opData.email) {
-        channels.push({ type: 'email', label: '✉️ Написать на Email', link: `mailto:${opData.email}` });
+        channels.push({ type: 'email', label: '✉️ Email поддержки', value: opData.email, link: `mailto:${opData.email}` });
       }
       if (opData.custom) {
-        channels.push({ type: 'custom', label: '🌐 Открыть контакты оператора', link: opData.custom.startsWith('http') ? opData.custom : `https://${opData.custom}` });
+        channels.push({ type: 'custom', label: '🌐 Страница контактов', value: opData.custom, link: opData.custom.startsWith('http') ? opData.custom : `https://${opData.custom}` });
       }
 
       appendMessage(
         'bot',
-        'Перевожу ваш запрос на живого оператора! Выберите удобный способ связи:',
-        channels[0]?.link || '#',
+        'Вот контакты нашей живой службы поддержки:',
         channels
       );
     };
@@ -456,7 +522,6 @@
 
       inputEl.value = '';
       appendMessage('user', messageText);
-      history.push({ sender: 'user', text: messageText });
 
       submitBtn.disabled = true;
       const loadingMsgEl = document.createElement('div');
@@ -473,7 +538,6 @@
           body: JSON.stringify({
             botId: botId,
             message: messageText,
-            history: history,
             config: config,
             operatorRouting: config.operatorRouting
           }),
@@ -483,16 +547,14 @@
         const loadingEl = document.getElementById('ai-widget-loading-msg');
         if (loadingEl) loadingEl.remove();
 
-        const botReply = data.response || 'Извините, передаю ваш вопрос живому оператору.';
-        appendMessage('bot', botReply, data.operatorLink, data.operatorChannels);
-        history.push({ sender: 'bot', text: botReply });
+        const botReply = data.response || 'Вы можете задать любой вопрос по базе знаний или связаться с оператором.';
+        appendMessage('bot', botReply, data.operatorChannels);
       } catch (err) {
         console.error('[AI Widget] API call error:', err);
         const loadingEl = document.getElementById('ai-widget-loading-msg');
         if (loadingEl) loadingEl.remove();
 
-        // Fallback to local operator buttons
-        triggerOperatorCall();
+        appendMessage('bot', 'Извините, возникла временная ошибка связи. Вы можете повторить вопрос или воспользоваться контактами оператора.');
       } finally {
         submitBtn.disabled = false;
       }
