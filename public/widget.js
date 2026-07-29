@@ -18,29 +18,39 @@
 
   let config = {
     botId: botId,
-    botName: 'ИИ-Консультант',
+    botName: 'Ассистент поддержки',
     welcomeMessage: 'Здравствуйте! Чем я могу помочь вам?',
     primaryColor: '#2563eb',
     toneOfVoice: 'friendly',
     knowledgeText: '',
-    faqItems: []
+    faqItems: [],
+    operatorRouting: {
+      telegram: '@support_store_bot',
+      whatsapp: '+79001234567',
+      email: 'support@store.ru',
+      custom: 'https://store.ru/help',
+      type: 'telegram',
+      enabled: true
+    }
   };
 
   // 2. Fetch Remote Config from Server API
   async function loadRemoteConfig() {
     try {
-      // First check if there is a locally saved config override (e.g. for live dashboard preview)
+      // First check local override if on same origin (e.g. preview)
       const localOverride = localStorage.getItem(`ai_bot_config_${botId}`) || localStorage.getItem('ai_widget_config');
       if (localOverride) {
         config = Object.assign({}, config, JSON.parse(localOverride));
       }
 
-      // Then attempt remote API sync
-      const res = await fetch(`${apiOrigin}/api/widget/config?botId=${encodeURIComponent(botId)}`);
+      // Remote API sync with cache-busting timestamp
+      const res = await fetch(`${apiOrigin}/api/widget/config?botId=${encodeURIComponent(botId)}&t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+
       if (res.ok) {
         const remoteData = await res.json();
         if (remoteData && remoteData.botName) {
-          // Merge remote config
           config = Object.assign({}, config, remoteData);
           if (localOverride) {
             config = Object.assign({}, config, JSON.parse(localOverride));
@@ -126,7 +136,7 @@
       .ai-widget-header {
         background: linear-gradient(135deg, ${config.primaryColor}, #1e40af);
         color: #ffffff;
-        padding: 16px 20px;
+        padding: 14px 18px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -134,14 +144,14 @@
       }
       .ai-widget-header-title {
         font-weight: 700;
-        font-size: 15px;
+        font-size: 14.5px;
         margin: 0;
         letter-spacing: -0.01em;
       }
       .ai-widget-header-subtitle {
         font-size: 11px;
-        opacity: 0.88;
-        margin: 3px 0 0 0;
+        opacity: 0.9;
+        margin: 2px 0 0 0;
         display: flex;
         align-items: center;
         gap: 6px;
@@ -154,12 +164,35 @@
         display: inline-block;
         box-shadow: 0 0 8px #22c55e;
       }
+      .ai-widget-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ai-widget-call-op-btn {
+        background: rgba(255, 255, 255, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #ffffff;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s ease, transform 0.15s ease;
+      }
+      .ai-widget-call-op-btn:hover {
+        background: rgba(255, 255, 255, 0.35);
+        transform: translateY(-1px);
+      }
       .ai-widget-close-btn {
         background: rgba(255,255,255,0.18);
         border: none;
         color: #ffffff;
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         cursor: pointer;
         font-size: 18px;
@@ -174,7 +207,7 @@
       }
       .ai-widget-messages {
         flex: 1;
-        padding: 18px;
+        padding: 16px;
         overflow-y: auto;
         background: #f8fafc;
         display: flex;
@@ -182,7 +215,7 @@
         gap: 12px;
       }
       .ai-widget-message {
-        max-width: 84%;
+        max-width: 86%;
         padding: 11px 15px;
         border-radius: 16px;
         font-size: 13.5px;
@@ -213,7 +246,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        margin-top: 8px;
+        margin-top: 6px;
         padding: 8px 14px;
         background-color: #2563eb;
         color: #ffffff !important;
@@ -221,7 +254,7 @@
         font-weight: 600;
         font-size: 12px;
         border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        box-shadow: 0 2px 8px rgba(37,99,235,0.25);
         transition: background-color 0.2s ease, transform 0.15s ease;
       }
       .ai-widget-op-btn:hover {
@@ -305,7 +338,12 @@
             <span class="ai-widget-online-dot"></span> онлайн • Поддержка 24/7
           </p>
         </div>
-        <button class="ai-widget-close-btn" id="ai-widget-close-btn">&times;</button>
+        <div class="ai-widget-header-actions">
+          <button class="ai-widget-call-op-btn" id="ai-widget-header-op-btn">
+            👤 Оператор
+          </button>
+          <button class="ai-widget-close-btn" id="ai-widget-close-btn">&times;</button>
+        </div>
       </div>
       <div class="ai-widget-messages" id="ai-widget-messages-list">
         <div class="ai-widget-message bot">${config.welcomeMessage}</div>
@@ -375,6 +413,42 @@
       messagesList.scrollTop = messagesList.scrollHeight;
     };
 
+    // Helper to trigger direct operator escalation
+    const triggerOperatorCall = () => {
+      appendMessage('user', '👤 Вызвать оператора');
+      history.push({ sender: 'user', text: 'Вызвать оператора' });
+
+      const opData = config.operatorRouting || {};
+      const channels = [];
+
+      const tg = opData.telegram || opData.destination || '@support_store_bot';
+      if (tg) {
+        channels.push({ type: 'telegram', label: '💬 Написать в Telegram', link: `https://t.me/${tg.replace('@', '')}` });
+      }
+      if (opData.whatsapp) {
+        channels.push({ type: 'whatsapp', label: '💚 Написать в WhatsApp', link: `https://wa.me/${opData.whatsapp.replace(/[^0-9]/g, '')}` });
+      }
+      if (opData.email) {
+        channels.push({ type: 'email', label: '✉️ Написать на Email', link: `mailto:${opData.email}` });
+      }
+      if (opData.custom) {
+        channels.push({ type: 'custom', label: '🌐 Открыть контакты оператора', link: opData.custom.startsWith('http') ? opData.custom : `https://${opData.custom}` });
+      }
+
+      appendMessage(
+        'bot',
+        'Перевожу ваш запрос на живого оператора! Выберите удобный способ связи:',
+        channels[0]?.link || '#',
+        channels
+      );
+    };
+
+    // Attach Header Call Operator button click
+    const headerOpBtn = document.getElementById('ai-widget-header-op-btn');
+    if (headerOpBtn) {
+      headerOpBtn.addEventListener('click', triggerOperatorCall);
+    }
+
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
       const messageText = inputEl.value.trim();
@@ -400,7 +474,8 @@
             botId: botId,
             message: messageText,
             history: history,
-            config: config
+            config: config,
+            operatorRouting: config.operatorRouting
           }),
         });
 
@@ -416,7 +491,8 @@
         const loadingEl = document.getElementById('ai-widget-loading-msg');
         if (loadingEl) loadingEl.remove();
 
-        appendMessage('bot', 'Извините, возникла ошибка соединения. Передаю ваш вопрос живому оператору.');
+        // Fallback to local operator buttons
+        triggerOperatorCall();
       } finally {
         submitBtn.disabled = false;
       }
