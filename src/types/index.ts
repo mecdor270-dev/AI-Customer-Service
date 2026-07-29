@@ -15,6 +15,7 @@ export interface WidgetConfig {
   botName: string;
   welcomeMessage: string;
   primaryColor: string;
+  themePreset?: 'white' | 'royal' | 'dark';
   toneOfVoice: 'polite' | 'formal' | 'friendly';
   knowledgeText: string;
   faqItems: FAQItem[];

@@ -33,6 +33,7 @@ export function getDefaultBotConfig(botId: string): WidgetConfig {
     botName: 'Ассистент поддержки',
     welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем магазине?',
     primaryColor: '#2563eb',
+    themePreset: 'royal',
     toneOfVoice: 'friendly',
     knowledgeText: 'График работы с 10:00 до 22:00. Инструкция по активации цифровых ключей: зайти в личный кабинет, ввести код. Возврат только при наличии видеозаписи.',
     faqItems: [

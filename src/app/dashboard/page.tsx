@@ -102,6 +102,7 @@ export default function DashboardPage() {
     botName: 'Ассистент поддержки',
     welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем магазине?',
     primaryColor: '#2563eb',
+    themePreset: 'royal',
     toneOfVoice: 'friendly',
     knowledgeText: 'График работы с 10:00 до 22:00. Инструкция по активации цифровых ключей: зайти в личный кабинет, ввести код.',
     faqItems: []
@@ -234,6 +235,27 @@ export default function DashboardPage() {
     if (field === 'welcomeMessage') {
       setTestMessages([{ sender: 'bot', text: value as string }]);
     }
+  };
+
+  const handleSelectPresetTheme = (preset: 'white' | 'royal' | 'dark') => {
+    let color = '#2563eb';
+    if (preset === 'white') color = '#0f172a';
+    if (preset === 'dark') color = '#0f172a';
+    if (preset === 'royal') color = '#2563eb';
+
+    const updated: WidgetConfig = {
+      ...config,
+      themePreset: preset,
+      primaryColor: color
+    };
+    saveCurrentProjectConfig(updated);
+    showToast(
+      preset === 'white'
+        ? 'Активирована Светлая тема (White)'
+        : preset === 'dark'
+        ? 'Активирована Тёмная тема (Dark Blue)'
+        : 'Активирована Фирменная синяя тема (Royal Blue)'
+    );
   };
 
   const handleOperatorChange = (type: 'telegram' | 'whatsapp' | 'email' | 'custom', value: string) => {
@@ -397,7 +419,7 @@ export default function DashboardPage() {
 
   return (
     <div className={`w-screen h-screen flex overflow-hidden font-sans selection:bg-blue-600 selection:text-white ${
-      themeMode === 'dark' ? 'dark bg-[#09090b] text-slate-100' : 'bg-slate-100 text-slate-900'
+      themeMode === 'dark' ? 'dark bg-[#09090b] text-slate-100' : 'bg-slate-100 text-slate-950'
     }`}>
       
       {/* Toast Notification Container */}
@@ -421,10 +443,10 @@ export default function DashboardPage() {
               <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-xs">
                 <Bot className="w-4 h-4" />
               </div>
-              <span className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">ChatPulse</span>
+              <span className="font-extrabold text-sm text-slate-950 dark:text-white tracking-tight">ChatPulse</span>
             </div>
 
-            <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-slate-200 font-mono text-[10px] font-extrabold border border-slate-300 dark:border-zinc-700">
+            <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-slate-200 font-mono text-[10px] font-extrabold border border-slate-300 dark:border-zinc-700">
               STARTER
             </span>
           </div>
@@ -437,7 +459,7 @@ export default function DashboardPage() {
               className={`w-full text-xs font-bold px-3 py-2 rounded-xl border focus:outline-none appearance-none cursor-pointer ${
                 themeMode === 'dark'
                   ? 'bg-zinc-900 border-zinc-800 text-white hover:border-zinc-700'
-                  : 'bg-white border-slate-300 text-slate-900 hover:border-slate-400 shadow-2xs'
+                  : 'bg-white border-slate-300 text-slate-950 hover:border-slate-400 shadow-2xs'
               }`}
             >
               {projects.map(p => (
@@ -452,7 +474,7 @@ export default function DashboardPage() {
           {/* Quick Add Project Button */}
           <button
             onClick={() => setIsAddProjectModalOpen(true)}
-            className="w-full py-1.5 px-3 bg-slate-100 dark:bg-zinc-800/70 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-slate-300 dark:border-zinc-700/50"
+            className="w-full py-1.5 px-3 bg-slate-100 dark:bg-zinc-800/70 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-900 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-slate-300 dark:border-zinc-700/50"
           >
             <Plus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>{t.addProject}</span>
@@ -462,14 +484,14 @@ export default function DashboardPage() {
         {/* Full Menu Navigation Sections */}
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 scrollbar-thin">
           
-          <div className="px-3 py-1.5 text-[10px] font-extrabold text-slate-800 dark:text-slate-400 uppercase tracking-wider">Разделы системы</div>
+          <div className="px-3 py-1.5 text-[10px] font-extrabold text-slate-900 dark:text-slate-400 uppercase tracking-wider">Разделы системы</div>
 
           <button
             onClick={() => setActiveTab('overview')}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -481,7 +503,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'bot_settings'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <Palette className="w-4 h-4" />
@@ -493,7 +515,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'knowledge'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <BookOpen className="w-4 h-4" />
@@ -505,7 +527,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'operator'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <Headphones className="w-4 h-4" />
@@ -517,7 +539,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'embed'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <Code2 className="w-4 h-4" />
@@ -529,7 +551,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'analytics'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -541,7 +563,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'billing'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <CreditCard className="w-4 h-4 text-emerald-500" />
@@ -553,7 +575,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'security'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-800 hover:bg-slate-100 hover:text-slate-950'
+                : themeMode === 'dark' ? 'text-slate-300 hover:bg-zinc-900 hover:text-white' : 'text-slate-900 hover:bg-slate-100 hover:text-slate-950'
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-purple-500" />
@@ -568,7 +590,7 @@ export default function DashboardPage() {
           <div
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`w-full p-2.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all shadow-2xs group ${
-              themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800' : 'bg-slate-100 border-slate-300 hover:bg-slate-200/80'
+              themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800' : 'bg-white border-slate-300 hover:bg-slate-100'
             }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
@@ -576,7 +598,7 @@ export default function DashboardPage() {
                 МЕ
               </div>
               <div className="flex flex-col min-w-0 text-left">
-                <span className="font-extrabold text-xs text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
+                <span className="font-extrabold text-xs text-slate-950 dark:text-white truncate group-hover:text-blue-600 transition-colors">
                   {userName}
                 </span>
                 <span className="text-[10px] text-slate-700 dark:text-slate-400 font-bold">
@@ -598,8 +620,8 @@ export default function DashboardPage() {
 
           {/* CHATGPT-STYLE POPUP MENU */}
           {isProfileMenuOpen && (
-            <div className={`absolute bottom-16 left-3 w-60 border rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-xs font-bold space-y-1 ${
-              themeMode === 'dark' ? 'bg-zinc-900 border-zinc-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+            <div className={`absolute bottom-16 left-3 w-60 border rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-xs font-extrabold space-y-1 ${
+              themeMode === 'dark' ? 'bg-zinc-900 border-zinc-700 text-slate-100' : 'bg-white border-slate-300 text-slate-950'
             }`}>
               
               <div className="px-3 py-2 flex items-center justify-between border-b border-slate-200 dark:border-zinc-800">
@@ -608,8 +630,8 @@ export default function DashboardPage() {
                     МЕ
                   </div>
                   <div>
-                    <div className="font-extrabold text-slate-900 dark:text-white text-xs">{userName}</div>
-                    <div className="text-[10px] text-slate-600 dark:text-slate-400">{sub.plan} Plan</div>
+                    <div className="font-extrabold text-slate-950 dark:text-white text-xs">{userName}</div>
+                    <div className="text-[10px] text-slate-700 dark:text-slate-400 font-bold">{sub.plan} Plan</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -619,7 +641,7 @@ export default function DashboardPage() {
               <Link
                 href="/pricing"
                 onClick={() => setIsProfileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-900 dark:text-slate-100"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-950 dark:text-slate-100"
               >
                 <Sparkles className="w-4 h-4 text-amber-500" />
                 <span>{t.changePlan}</span>
@@ -628,7 +650,7 @@ export default function DashboardPage() {
               {/* Menu Item 2: Персонализация (Theme Toggle) */}
               <button
                 onClick={handleToggleTheme}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left text-slate-900 dark:text-slate-100"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left text-slate-950 dark:text-slate-100"
               >
                 {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
                 <span>{t.personalization} ({themeMode === 'dark' ? 'Тёмная' : 'Светлая'})</span>
@@ -640,7 +662,7 @@ export default function DashboardPage() {
                   setIsProfileMenuOpen(false);
                   setIsProfileModalOpen(true);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left text-slate-900 dark:text-slate-100"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left text-slate-950 dark:text-slate-100"
               >
                 <UserIcon className="w-4 h-4 text-blue-500" />
                 <span>{t.profile}</span>
@@ -666,7 +688,7 @@ export default function DashboardPage() {
                   setIsProfileMenuOpen(false);
                   setActiveTab('embed');
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-900 dark:text-slate-100"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-slate-950 dark:text-slate-100"
               >
                 <div className="flex items-center gap-3">
                   <HelpCircle className="w-4 h-4 text-emerald-500" />
@@ -679,7 +701,7 @@ export default function DashboardPage() {
               <button
                 id="dash-logout-btn"
                 onClick={handleLogout}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors font-bold"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors font-extrabold"
               >
                 <div className="flex items-center gap-3">
                   <LogOut className="w-4 h-4" />
@@ -697,7 +719,7 @@ export default function DashboardPage() {
 
       {/* MAIN FULL-SCREEN WORKSPACE CANVAS */}
       <main className={`flex-1 h-screen overflow-y-auto flex flex-col ${
-        themeMode === 'dark' ? 'bg-[#09090b]' : 'bg-slate-100 text-slate-900'
+        themeMode === 'dark' ? 'bg-[#09090b]' : 'bg-slate-100 text-slate-950'
       }`}>
         
         {/* Top Breadcrumb & Controls Header */}
@@ -705,17 +727,17 @@ export default function DashboardPage() {
           themeMode === 'dark' ? 'bg-[#0d0d0e] border-zinc-800' : 'bg-white border-slate-200 shadow-2xs'
         }`}>
           <div className="flex items-center gap-3">
-            <h1 className="font-extrabold text-slate-900 dark:text-white text-sm">
-              {activeProject?.name || 'Проект'} <span className="text-slate-600 dark:text-slate-400 text-xs font-medium">/ {activeTab}</span>
+            <h1 className="font-extrabold text-slate-950 dark:text-white text-sm">
+              {activeProject?.name || 'Проект'} <span className="text-slate-600 dark:text-slate-400 text-xs font-bold">/ {activeTab}</span>
             </h1>
-            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-emerald-500/10 dark:text-emerald-400 text-[10px] font-mono border border-blue-300 dark:border-emerald-500/20 font-extrabold">
+            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 dark:bg-emerald-500/10 dark:text-emerald-400 text-[10px] font-mono border border-blue-300 dark:border-emerald-500/20 font-extrabold">
               Bot ID: {activeProject?.botId}
             </span>
           </div>
 
           <div className="flex items-center gap-3 text-xs">
             <span className="text-slate-800 dark:text-slate-300 hidden sm:inline font-bold">
-              Дневной лимит (00:00 МСК): <span className="font-extrabold text-slate-900 dark:text-white">{sub.dailyUsageCount || 0}/{sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30}</span>
+              Дневной лимит (00:00 МСК): <span className="font-extrabold text-slate-950 dark:text-white">{sub.dailyUsageCount || 0}/{sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30}</span>
             </span>
 
             <Link
@@ -740,56 +762,56 @@ export default function DashboardPage() {
                 {/* 3 Metric Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className={`p-4 rounded-2xl border ${
-                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-950'
                   }`}>
                     <div className="flex items-center justify-between text-slate-700 dark:text-slate-400 mb-2">
                       <span className="text-xs font-extrabold">Обращений клиентов</span>
                       <MessageSquare className="w-4 h-4 text-blue-500" />
                     </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">1,482</div>
+                    <div className="text-2xl font-black text-slate-950 dark:text-white">1,482</div>
                     <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold mt-1">↑ +14% на этой неделе</div>
                   </div>
 
                   <div className={`p-4 rounded-2xl border ${
-                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-950'
                   }`}>
                     <div className="flex items-center justify-between text-slate-700 dark:text-slate-400 mb-2">
                       <span className="text-xs font-extrabold">Автономных ответов</span>
                       <Sparkles className="w-4 h-4 text-emerald-500" />
                     </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">92.4%</div>
+                    <div className="text-2xl font-black text-slate-950 dark:text-white">92.4%</div>
                     <div className="text-[10px] text-slate-700 dark:text-slate-400 mt-1 font-bold">Без вызова оператора</div>
                   </div>
 
                   <div className={`p-4 rounded-2xl border ${
-                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-950'
                   }`}>
                     <div className="flex items-center justify-between text-slate-700 dark:text-slate-400 mb-2">
                       <span className="text-xs font-extrabold">Ср. время ответа</span>
                       <Clock className="w-4 h-4 text-purple-500" />
                     </div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">0.4 сек</div>
+                    <div className="text-2xl font-black text-slate-950 dark:text-white">0.4 сек</div>
                     <div className="text-[10px] text-slate-700 dark:text-slate-400 mt-1 font-bold">Мгновенная реакция</div>
                   </div>
                 </div>
 
                 {/* Active Project Card */}
                 <div className={`p-6 rounded-2xl border space-y-4 ${
-                  themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                  themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-950'
                 }`}>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Информация о текущем проекте</h3>
+                  <h3 className="font-extrabold text-slate-950 dark:text-white text-base">Информация о текущем проекте</h3>
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <span className="text-slate-600 dark:text-slate-400 block font-bold">Название</span>
-                      <div className="font-extrabold text-slate-900 dark:text-white text-sm">{activeProject?.name}</div>
+                      <span className="text-slate-700 dark:text-slate-400 block font-bold">Название</span>
+                      <div className="font-extrabold text-slate-950 dark:text-white text-sm">{activeProject?.name}</div>
                     </div>
                     <div>
-                      <span className="text-slate-600 dark:text-slate-400 block font-bold">Категория</span>
-                      <div className="font-extrabold text-slate-900 dark:text-white text-sm">{activeProject?.category}</div>
+                      <span className="text-slate-700 dark:text-slate-400 block font-bold">Категория</span>
+                      <div className="font-extrabold text-slate-950 dark:text-white text-sm">{activeProject?.category}</div>
                     </div>
                   </div>
                   <div className="pt-2 text-xs">
-                    <span className="text-slate-600 dark:text-slate-400 block font-bold mb-1">Описание</span>
+                    <span className="text-slate-700 dark:text-slate-400 block font-bold mb-1">Описание</span>
                     <p className="text-slate-800 dark:text-slate-300 font-medium">{activeProject?.description}</p>
                   </div>
                 </div>
@@ -800,10 +822,10 @@ export default function DashboardPage() {
             {/* TAB: EMBED & INSTALLATION CODE */}
             {activeTab === 'embed' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-950'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-950 dark:text-white text-base flex items-center gap-2">
                     <Code2 className="w-5 h-5 text-blue-500" />
                     Интеграция виджета на любой сайт
                   </h2>
@@ -852,7 +874,7 @@ export default function DashboardPage() {
 
                 {/* Step-by-Step Installation Guides */}
                 <div className="space-y-4 pt-2">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <h3 className="font-extrabold text-sm text-slate-955 dark:text-white flex items-center gap-2">
                     <FileCode2 className="w-4 h-4 text-blue-500" />
                     Пошаговые инструкции установки по типам сайтов:
                   </h3>
@@ -864,7 +886,7 @@ export default function DashboardPage() {
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'custom'
                           ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                          : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                          : 'border-transparent text-slate-700 hover:text-slate-955 dark:text-slate-400 dark:hover:text-white'
                       }`}
                     >
                       ⚡ Собственный сайт (HTML/PHP/React/Bitrix)
@@ -875,7 +897,7 @@ export default function DashboardPage() {
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'tilda'
                           ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                          : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                          : 'border-transparent text-slate-700 hover:text-slate-955 dark:text-slate-400 dark:hover:text-white'
                       }`}
                     >
                       🔷 Tilda Publishing
@@ -886,7 +908,7 @@ export default function DashboardPage() {
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'wordpress'
                           ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                          : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                          : 'border-transparent text-slate-700 hover:text-slate-955 dark:text-slate-400 dark:hover:text-white'
                       }`}
                     >
                       🟢 WordPress
@@ -897,7 +919,7 @@ export default function DashboardPage() {
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'shopify'
                           ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                          : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
+                          : 'border-transparent text-slate-700 hover:text-slate-955 dark:text-slate-400 dark:hover:text-white'
                       }`}
                     >
                       🛍️ Shopify / Webflow
@@ -950,20 +972,123 @@ export default function DashboardPage() {
             {/* TAB: BOT SETTINGS */}
             {activeTab === 'bot_settings' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-950'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-955 dark:text-white text-base flex items-center gap-2">
                     <Palette className="w-5 h-5 text-blue-500" />
                     Персонализация стиля и личности ИИ-Консультанта
                   </h2>
                   <p className="text-xs text-slate-700 dark:text-slate-400 font-medium mt-1">
-                    Настройте внешний вид, имя и системный тон общения.
+                    Настройте визуальный стиль виджета, имя и системный тон общения.
                   </p>
                 </div>
 
+                {/* 3 PRESET WIDGET THEME CARDS AS SHOWN IN SCREENSHOT 1 */}
                 <div>
-                  <label className="block text-xs font-extrabold mb-1 text-slate-900 dark:text-slate-200">Имя бота</label>
+                  <label className="block text-xs font-extrabold mb-2 text-slate-955 dark:text-slate-200">
+                    Готовые пресеты стиля виджета
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    
+                    {/* Theme Preset 1: Светлая тема (White) */}
+                    <div
+                      onClick={() => handleSelectPresetTheme('white')}
+                      className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex flex-col justify-between space-y-3 relative ${
+                        config.themePreset === 'white'
+                          ? 'border-blue-600 bg-white ring-4 ring-blue-500/20 shadow-md'
+                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      {config.themePreset === 'white' && (
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
+                          ✓
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-extrabold text-xs text-slate-900">Светлая тема (White)</div>
+                        <p className="text-[10px] text-slate-500 mt-1 leading-relaxed font-medium">
+                          Классическая минималистичная тема для интернет-магазинов и порталов.
+                        </p>
+                      </div>
+                      <div className="w-full bg-white border border-slate-200 rounded-xl p-2.5 space-y-1.5 shadow-2xs">
+                        <div className="text-[10px] font-bold text-slate-900 flex items-center gap-1.5">
+                          <Bot className="w-3 h-3 text-blue-600" />
+                          <span>Support Chat</span>
+                        </div>
+                        <div className="bg-slate-100 text-[9px] text-slate-600 p-1.5 rounded-md font-medium">
+                          Чем я могу вам помочь?
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Theme Preset 2: Фирменная синяя (Royal Blue) */}
+                    <div
+                      onClick={() => handleSelectPresetTheme('royal')}
+                      className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex flex-col justify-between space-y-3 relative ${
+                        config.themePreset === 'royal' || (!config.themePreset && config.primaryColor === '#2563eb')
+                          ? 'border-blue-600 bg-white ring-4 ring-blue-500/20 shadow-md'
+                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      {(config.themePreset === 'royal' || (!config.themePreset && config.primaryColor === '#2563eb')) && (
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
+                          ✓
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-extrabold text-xs text-slate-900">Фирменная синяя (Royal Blue)</div>
+                        <p className="text-[10px] text-slate-500 mt-1 leading-relaxed font-medium">
+                          Яркий фирменный стиль B2B сервисов, привлекающий внимание пользователей.
+                        </p>
+                      </div>
+                      <div className="w-full bg-blue-600 text-white rounded-xl p-2.5 space-y-1.5 shadow-md">
+                        <div className="text-[10px] font-bold flex items-center gap-1.5">
+                          <Bot className="w-3 h-3 text-white" />
+                          <span>AI Assistant</span>
+                        </div>
+                        <div className="bg-blue-700 text-[9px] text-white p-1.5 rounded-md font-medium">
+                          Задайте мне вопрос 24/7!
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Theme Preset 3: Темная (Dark Blue) */}
+                    <div
+                      onClick={() => handleSelectPresetTheme('dark')}
+                      className={`cursor-pointer p-4 rounded-2xl border-2 transition-all flex flex-col justify-between space-y-3 relative ${
+                        config.themePreset === 'dark'
+                          ? 'border-blue-600 bg-white ring-4 ring-blue-500/20 shadow-md'
+                          : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      {config.themePreset === 'dark' && (
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
+                          ✓
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-extrabold text-xs text-slate-900">Темная (Dark Blue)</div>
+                        <p className="text-[10px] text-slate-500 mt-1 leading-relaxed font-medium">
+                          Современная темная тема для IT-продуктов, SaaS сервисов и разработчиков.
+                        </p>
+                      </div>
+                      <div className="w-full bg-[#0f172a] text-white rounded-xl p-2.5 space-y-1.5 shadow-md">
+                        <div className="text-[10px] font-bold flex items-center gap-1.5">
+                          <Bot className="w-3 h-3 text-blue-400" />
+                          <span>Night Chat AI</span>
+                        </div>
+                        <div className="bg-[#1e293b] text-[9px] text-slate-200 p-1.5 rounded-md font-medium border border-slate-700">
+                          Готов к решению задач!
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold mb-1 text-slate-955 dark:text-slate-200">Имя бота</label>
                   <input
                     id="dash-bot-name-input"
                     type="text"
@@ -976,7 +1101,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold mb-1 text-slate-900 dark:text-slate-200">Приветственное сообщение</label>
+                  <label className="block text-xs font-extrabold mb-1 text-slate-955 dark:text-slate-200">Приветственное сообщение</label>
                   <textarea
                     id="dash-welcome-msg-input"
                     rows={3}
@@ -989,7 +1114,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold mb-2 text-slate-900 dark:text-slate-200">Системный тон общения</label>
+                  <label className="block text-xs font-extrabold mb-2 text-slate-955 dark:text-slate-200">Системный тон общения</label>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { id: 'polite', label: 'Вежливый', desc: 'Доброжелательный' },
@@ -1013,35 +1138,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-extrabold mb-2 text-slate-900 dark:text-slate-200">Основной цвет кнопки и шапки</label>
-                  <div className="flex items-center gap-3">
-                    {['#2563eb', '#059669', '#7c3aed', '#dc2626', '#0f172a'].map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => handleConfigChange('primaryColor', color)}
-                        style={{ backgroundColor: color }}
-                        className={`w-9 h-9 rounded-xl border-2 transition-all flex items-center justify-center text-white ${
-                          config.primaryColor === color ? 'scale-110 ring-4 ring-blue-500/30 border-white' : 'border-transparent'
-                        }`}
-                      >
-                        {config.primaryColor === color && <Check className="w-4 h-4" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
               </div>
             )}
 
             {/* TAB: KNOWLEDGE BASE */}
             {activeTab === 'knowledge' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-955'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-955 dark:text-white text-base flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-blue-500" />
                     База Знаний (Knowledge Base)
                   </h2>
@@ -1051,7 +1157,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-extrabold mb-1 text-slate-900 dark:text-slate-200">Регламенты и условия магазина (Textarea)</label>
+                  <label className="block text-xs font-extrabold mb-1 text-slate-955 dark:text-slate-200">Регламенты и условия магазина (Textarea)</label>
                   <textarea
                     id="dash-knowledge-textarea"
                     rows={5}
@@ -1064,7 +1170,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 dark:border-zinc-800 space-y-4">
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 dark:text-slate-200">Частые пары Вопрос-Ответ (FAQ)</h3>
+                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-955 dark:text-slate-200">Частые пары Вопрос-Ответ (FAQ)</h3>
 
                   <form onSubmit={handleAddFAQ} className={`p-4 rounded-xl border space-y-3 ${
                     themeMode === 'dark' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-slate-50 border-slate-300'
@@ -1103,10 +1209,10 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     {config.faqItems?.map((item) => (
                       <div key={item.id} className={`p-4 rounded-xl border space-y-1.5 relative ${
-                        themeMode === 'dark' ? 'bg-zinc-900/80 border-zinc-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900 shadow-xs'
+                        themeMode === 'dark' ? 'bg-zinc-900/80 border-zinc-800 text-slate-100' : 'bg-white border-slate-300 text-slate-955 shadow-xs'
                       }`}>
                         <div className="flex items-start justify-between">
-                          <div className="font-extrabold text-xs flex items-center gap-1.5 text-slate-900 dark:text-white">
+                          <div className="font-extrabold text-xs flex items-center gap-1.5 text-slate-955 dark:text-white">
                             <HelpCircle className="w-4 h-4 text-blue-600 shrink-0" />
                             <span>{item.question}</span>
                           </div>
@@ -1129,10 +1235,10 @@ export default function DashboardPage() {
             {/* TAB: OPERATOR ROUTING (4 INDEPENDENT CHANNELS) */}
             {activeTab === 'operator' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-955'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-955 dark:text-white text-base flex items-center gap-2">
                     <Headphones className="w-5 h-5 text-blue-500" />
                     Маршрутизация перевода на живого оператора
                   </h2>
@@ -1180,7 +1286,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   {opSubTab === 'telegram' && (
                     <div className="space-y-2">
-                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-300">Telegram Юзернейм или Бот поддержки:</label>
+                      <label className="block text-xs font-extrabold text-slate-955 dark:text-slate-300">Telegram Юзернейм или Бот поддержки:</label>
                       <input
                         type="text"
                         value={opTelegram}
@@ -1196,7 +1302,7 @@ export default function DashboardPage() {
 
                   {opSubTab === 'whatsapp' && (
                     <div className="space-y-2">
-                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-300">WhatsApp Телефон поддержки:</label>
+                      <label className="block text-xs font-extrabold text-slate-955 dark:text-slate-300">WhatsApp Телефон поддержки:</label>
                       <input
                         type="text"
                         value={opWhatsapp}
@@ -1212,7 +1318,7 @@ export default function DashboardPage() {
 
                   {opSubTab === 'email' && (
                     <div className="space-y-2">
-                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-300">Support Email адрес:</label>
+                      <label className="block text-xs font-extrabold text-slate-955 dark:text-slate-300">Support Email адрес:</label>
                       <input
                         type="email"
                         value={opEmail}
@@ -1228,7 +1334,7 @@ export default function DashboardPage() {
 
                   {opSubTab === 'custom' && (
                     <div className="space-y-2">
-                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-300">Своя ссылка или страница контактов:</label>
+                      <label className="block text-xs font-extrabold text-slate-955 dark:text-slate-300">Своя ссылка или страница контактов:</label>
                       <input
                         type="text"
                         value={opCustom}
@@ -1242,7 +1348,7 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-300 dark:border-blue-800/50 text-xs text-blue-950 dark:text-blue-200 font-medium">
+                  <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-300 dark:border-blue-800/50 text-xs text-blue-955 dark:text-blue-200 font-medium">
                     <span className="font-extrabold">Все заведенные контакты подтянутся в виджет!</span> При запросе оператора виджет покажет реквизиты и кнопки скопировать/перейти.
                   </div>
                 </div>
@@ -1252,10 +1358,10 @@ export default function DashboardPage() {
             {/* TAB: ANALYTICS */}
             {activeTab === 'analytics' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-955'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-955 dark:text-white text-base flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-blue-500" />
                     Аналитика и детальные метрики
                   </h2>
@@ -1283,10 +1389,10 @@ export default function DashboardPage() {
             {/* TAB: BILLING & TARIFFS */}
             {activeTab === 'billing' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-955'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-955 dark:text-white text-base flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-emerald-500" />
                     Управление подпиской и тарифом
                   </h2>
@@ -1297,26 +1403,26 @@ export default function DashboardPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-300 dark:border-zinc-700">
-                    <div className="font-extrabold text-slate-900 dark:text-white text-sm">Starter Free</div>
-                    <div className="text-xl font-black text-slate-900 dark:text-white my-2">0 ₽</div>
+                    <div className="font-extrabold text-slate-955 dark:text-white text-sm">Starter Free</div>
+                    <div className="text-xl font-black text-slate-955 dark:text-white my-2">0 ₽</div>
                     <p className="text-[10px] text-slate-700 dark:text-slate-400 font-medium">30 ответов в месяц</p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-600/50">
-                    <div className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-1">
+                    <div className="font-extrabold text-slate-955 dark:text-white text-sm flex items-center gap-1">
                       <span>Pro Plan</span>
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                     </div>
-                    <div className="text-xl font-black text-slate-900 dark:text-white my-2">1 890 ₽ <span className="text-[10px] font-normal text-slate-600">/ $19</span></div>
+                    <div className="text-xl font-black text-slate-955 dark:text-white my-2">1 890 ₽ <span className="text-[10px] font-normal text-slate-600">/ $19</span></div>
                     <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-extrabold">2 000 ответов в день (00:00 МСК)</p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-300 dark:border-purple-600/50">
-                    <div className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-1">
+                    <div className="font-extrabold text-slate-955 dark:text-white text-sm flex items-center gap-1">
                       <span>Max Plan</span>
                       <Crown className="w-3.5 h-3.5 text-amber-500" />
                     </div>
-                    <div className="text-xl font-black text-slate-900 dark:text-white my-2">2 990 ₽ <span className="text-[10px] font-normal text-slate-600">/ $39.99</span></div>
+                    <div className="text-xl font-black text-slate-955 dark:text-white my-2">2 990 ₽ <span className="text-[10px] font-normal text-slate-600">/ $39.99</span></div>
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 font-extrabold">6 000 ответов в день (00:00 МСК)</p>
                   </div>
                 </div>
@@ -1333,10 +1439,10 @@ export default function DashboardPage() {
             {/* TAB: AI SECURITY */}
             {activeTab === 'security' && (
               <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
-                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-900'
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-300 shadow-2xs text-slate-955'
               }`}>
                 <div>
-                  <h2 className="font-extrabold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                  <h2 className="font-extrabold text-slate-955 dark:text-white text-base flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-purple-500" />
                     Безопасность ИИ и Защита Данных
                   </h2>
@@ -1346,7 +1452,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-300 space-y-2 font-medium">
-                  <div className="font-extrabold flex items-center gap-2 text-emerald-950 dark:text-emerald-200">
+                  <div className="font-extrabold flex items-center gap-2 text-emerald-955 dark:text-emerald-200">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span>Защита от утечки данных включена</span>
                   </div>
@@ -1376,26 +1482,36 @@ export default function DashboardPage() {
               </div>
 
               {/* Live Preview Card */}
-              <div className="w-full max-w-sm bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden h-[440px]">
+              <div className={`w-full max-w-sm rounded-2xl shadow-2xl border flex flex-col overflow-hidden h-[440px] ${
+                config.themePreset === 'dark'
+                  ? 'bg-[#090d16] border-slate-800 text-white'
+                  : 'bg-white border-slate-300 text-slate-900'
+              }`}>
                 
                 {/* Dynamic Header */}
                 <div
-                  style={{ backgroundColor: config.primaryColor }}
-                  className="p-4 text-white flex items-center justify-between shadow-xs"
+                  style={{
+                    backgroundColor: config.themePreset === 'white' ? '#ffffff' : config.themePreset === 'dark' ? '#0f172a' : config.primaryColor,
+                    color: config.themePreset === 'white' ? '#0f172a' : '#ffffff',
+                    borderBottom: config.themePreset === 'white' ? '1px solid #e2e8f0' : 'none'
+                  }}
+                  className="p-4 flex items-center justify-between shadow-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">
-                      <Bot className="w-5 h-5 text-white" />
+                    <div className="w-9 h-9 rounded-full bg-blue-600/20 flex items-center justify-center font-bold text-sm">
+                      <Bot className="w-5 h-5" />
                     </div>
                     <div>
                       <h4 className="font-extrabold text-xs sm:text-sm leading-tight">{config.botName || 'Ассистент поддержки'}</h4>
-                      <p className="text-[10px] text-white/90 font-medium">Онлайн • Тон: {config.toneOfVoice}</p>
+                      <p className="text-[10px] opacity-80 font-medium">Онлайн • Тон: {config.toneOfVoice}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Messages Feed */}
-                <div className="flex-1 p-3.5 bg-slate-50 space-y-3 overflow-y-auto text-xs">
+                <div className={`flex-1 p-3.5 space-y-3 overflow-y-auto text-xs ${
+                  config.themePreset === 'dark' ? 'bg-[#090d16]' : 'bg-slate-50'
+                }`}>
                   {testMessages.map((msg, idx) => (
                     <div
                       key={idx}
@@ -1403,12 +1519,13 @@ export default function DashboardPage() {
                     >
                       <div
                         style={{
-                          backgroundColor: msg.sender === 'user' ? config.primaryColor : undefined
+                          backgroundColor: msg.sender === 'user' ? (config.themePreset === 'white' ? '#0f172a' : config.primaryColor) : (config.themePreset === 'dark' ? '#1e293b' : '#ffffff'),
+                          color: msg.sender === 'user' ? '#ffffff' : (config.themePreset === 'dark' ? '#f8fafc' : '#0f172a')
                         }}
                         className={`max-w-[85%] p-3 rounded-2xl leading-relaxed shadow-2xs font-medium ${
                           msg.sender === 'user'
-                            ? 'text-white rounded-br-none'
-                            : 'bg-white border border-slate-300 text-slate-900 rounded-bl-none'
+                            ? 'rounded-br-none'
+                            : 'border border-slate-200 dark:border-slate-700 rounded-bl-none'
                         }`}
                       >
                         {msg.text}
@@ -1426,18 +1543,22 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Input Form */}
-                <form onSubmit={handleSendTestMessage} className="p-3 border-t border-slate-300 bg-white flex items-center gap-2">
+                <form onSubmit={handleSendTestMessage} className={`p-3 border-t flex items-center gap-2 ${
+                  config.themePreset === 'dark' ? 'bg-[#090d16] border-slate-800' : 'bg-white border-slate-300'
+                }`}>
                   <input
                     type="text"
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
                     placeholder="Протестируйте ответ..."
-                    className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                    className={`flex-1 border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium ${
+                      config.themePreset === 'dark' ? 'bg-[#1e293b] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                    }`}
                   />
                   <button
                     type="submit"
                     disabled={testLoading || !testInput.trim()}
-                    style={{ backgroundColor: config.primaryColor }}
+                    style={{ backgroundColor: config.themePreset === 'white' ? '#0f172a' : config.primaryColor }}
                     className="text-white p-2 rounded-xl text-xs font-semibold disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />
@@ -1456,7 +1577,7 @@ export default function DashboardPage() {
       {/* CREATE NEW PROJECT SURVEY MODAL */}
       {isAddProjectModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-slate-900 dark:text-white">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-slate-950 dark:text-white">
             <button
               onClick={() => setIsAddProjectModalOpen(false)}
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -1476,7 +1597,7 @@ export default function DashboardPage() {
 
             <form onSubmit={handleCreateProjectSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-extrabold text-slate-900 dark:text-slate-300 mb-1">Название проекта / сайта</label>
+                <label className="block font-extrabold text-slate-955 dark:text-slate-300 mb-1">Название проекта / сайта</label>
                 <input
                   type="text"
                   required
@@ -1488,7 +1609,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="block font-extrabold text-slate-900 dark:text-slate-300 mb-1">Сфера деятельности / Тематика</label>
+                <label className="block font-extrabold text-slate-955 dark:text-slate-300 mb-1">Сфера деятельности / Тематика</label>
                 <input
                   type="text"
                   value={newProjCategory}
@@ -1499,7 +1620,7 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="block font-extrabold text-slate-900 dark:text-slate-300 mb-1">Краткое описание проекта</label>
+                <label className="block font-extrabold text-slate-955 dark:text-slate-300 mb-1">Краткое описание проекта</label>
                 <textarea
                   rows={2}
                   value={newProjDesc}
@@ -1532,7 +1653,7 @@ export default function DashboardPage() {
       {/* DEDICATED SETTINGS MODAL */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 w-full max-w-lg rounded-2xl p-6 relative space-y-5 text-slate-900 dark:text-white">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 w-full max-w-lg rounded-2xl p-6 relative space-y-5 text-slate-955 dark:text-white">
             <button
               onClick={() => setIsSettingsModalOpen(false)}
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -1552,7 +1673,7 @@ export default function DashboardPage() {
 
             {/* Language Switcher Section */}
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700/80 space-y-3">
-              <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-200">Выбор языка интерфейса (Language):</label>
+              <label className="block text-xs font-extrabold text-slate-955 dark:text-slate-200">Выбор языка интерфейса (Language):</label>
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -1592,7 +1713,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between text-slate-700 dark:text-slate-400 font-medium">
                 <span>Использовано сегодня:</span>
-                <span className="text-slate-900 dark:text-white font-extrabold">{sub.dailyUsageCount || 0} / {sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30} сообщений</span>
+                <span className="text-slate-955 dark:text-white font-extrabold">{sub.dailyUsageCount || 0} / {sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30} сообщений</span>
               </div>
             </div>
 
@@ -1620,7 +1741,7 @@ export default function DashboardPage() {
       {/* USER PROFILE MODAL */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-slate-900 dark:text-white">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-slate-955 dark:text-white">
             <button
               onClick={() => setIsProfileModalOpen(false)}
               className="absolute top-4 right-4 text-slate-500 hover:text-slate-800 dark:hover:text-white"
@@ -1633,7 +1754,7 @@ export default function DashboardPage() {
                 МЕ
               </div>
               <div>
-                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">{userName}</h3>
+                <h3 className="font-extrabold text-base text-slate-955 dark:text-white">{userName}</h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">{userEmail}</p>
               </div>
             </div>
@@ -1645,15 +1766,15 @@ export default function DashboardPage() {
               </div>
               <div className="flex justify-between text-slate-700 dark:text-slate-400 font-medium">
                 <span>Дневной лимит (00:00 МСК):</span>
-                <span className="text-slate-900 dark:text-white font-extrabold">{sub.plan === 'Pro' ? '2 000' : sub.plan === 'Max' ? '6 000' : '30'} сообщений</span>
+                <span className="text-slate-955 dark:text-white font-extrabold">{sub.plan === 'Pro' ? '2 000' : sub.plan === 'Max' ? '6 000' : '30'} сообщений</span>
               </div>
               <div className="flex justify-between text-slate-700 dark:text-slate-400 font-medium">
                 <span>Всего проектов:</span>
-                <span className="text-slate-900 dark:text-white font-extrabold">{projects.length}</span>
+                <span className="text-slate-955 dark:text-white font-extrabold">{projects.length}</span>
               </div>
               <div className="flex justify-between text-slate-700 dark:text-slate-400 font-medium">
                 <span>Язык системы:</span>
-                <span className="text-slate-900 dark:text-white uppercase font-extrabold">{lang}</span>
+                <span className="text-slate-955 dark:text-white uppercase font-extrabold">{lang}</span>
               </div>
             </div>
 

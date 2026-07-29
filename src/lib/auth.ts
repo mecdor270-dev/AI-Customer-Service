@@ -1,9 +1,34 @@
 export interface UserAccount {
   id: string;
   email: string;
+  passwordHash?: string;
   companyName: string;
   botId: string;
   createdAt: string;
+}
+
+const REGISTRY_KEY = 'ai_user_accounts_registry';
+
+export function getAccountsRegistry(): Record<string, UserAccount> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(REGISTRY_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Error reading accounts registry:', e);
+  }
+  return {};
+}
+
+export function saveAccountsRegistry(registry: Record<string, UserAccount>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+  } catch (e) {
+    console.error('Error saving accounts registry:', e);
+  }
 }
 
 export function getCurrentUserEmail(): string {
@@ -18,7 +43,7 @@ export function getCurrentUserEmail(): string {
 export function setCurrentUserEmail(email: string): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem('ai_user_email', email);
+    localStorage.setItem('ai_user_email', email.toLowerCase().trim());
     localStorage.setItem('ai_user_logged_in', 'true');
   } catch (e) {
     console.error('Error setting current user email:', e);
@@ -36,6 +61,78 @@ export function logoutUser(): void {
   }
 }
 
+export function registerUserAccount(email: string, password: string, companyName?: string): { success: boolean; error?: string; account?: UserAccount } {
+  if (!email || !email.includes('@')) {
+    return { success: false, error: 'Введите корректный адрес электронной почты' };
+  }
+  if (!password || password.length < 4) {
+    return { success: false, error: 'Пароль должен содержать не менее 4 символов' };
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const registry = getAccountsRegistry();
+
+  // STRICT UNIQUE EMAIL CHECK: Allow ONLY 1 account per email address
+  if (registry[cleanEmail]) {
+    return {
+      success: false,
+      error: `Пользователь с почтой ${cleanEmail} уже зарегистрирован! Пожалуйста, войдите в свой аккаунт.`
+    };
+  }
+
+  const safeTag = cleanEmail.split('@')[0].replace(/[^a-z0-9]/gi, '');
+  const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+  const newAccount: UserAccount = {
+    id: `usr_${Date.now()}`,
+    email: cleanEmail,
+    passwordHash: password,
+    companyName: companyName || 'Мой интернет-магазин',
+    botId: `bot_shop_${safeTag || 'main'}_${randomSuffix}`,
+    createdAt: new Date().toISOString()
+  };
+
+  registry[cleanEmail] = newAccount;
+  saveAccountsRegistry(registry);
+  setCurrentUserEmail(cleanEmail);
+
+  return { success: true, account: newAccount };
+}
+
+export function loginUserAccount(email: string, password: string): { success: boolean; error?: string; account?: UserAccount } {
+  if (!email || !email.includes('@')) {
+    return { success: false, error: 'Введите корректный адрес электронной почты' };
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const registry = getAccountsRegistry();
+  const existing = registry[cleanEmail];
+
+  if (!existing) {
+    // If first time user logging in without explicit registration, auto-create account for seamless demo
+    const safeTag = cleanEmail.split('@')[0].replace(/[^a-z0-9]/gi, '');
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+    const newAccount: UserAccount = {
+      id: `usr_${Date.now()}`,
+      email: cleanEmail,
+      passwordHash: password,
+      companyName: 'Мой интернет-магазин',
+      botId: `bot_shop_${safeTag || 'main'}_${randomSuffix}`,
+      createdAt: new Date().toISOString()
+    };
+    registry[cleanEmail] = newAccount;
+    saveAccountsRegistry(registry);
+    setCurrentUserEmail(cleanEmail);
+    return { success: true, account: newAccount };
+  }
+
+  if (existing.passwordHash && existing.passwordHash !== password) {
+    return { success: false, error: 'Неверный пароль. Попробуйте еще раз или проверьте раскладку.' };
+  }
+
+  setCurrentUserEmail(cleanEmail);
+  return { success: true, account: existing };
+}
+
 export function getAccountStorageKey(targetEmail?: string): string {
   const email = targetEmail || getCurrentUserEmail();
   const safeEmail = email.toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -44,49 +141,24 @@ export function getAccountStorageKey(targetEmail?: string): string {
 
 export function getOrCreateAccount(email?: string, companyName?: string): UserAccount {
   const activeEmail = email || getCurrentUserEmail();
-  
-  if (typeof window === 'undefined') {
-    return {
-      id: 'usr_demo_1',
-      email: activeEmail,
-      companyName: companyName || 'Мой интернет-магазин',
-      botId: `bot_shop_${activeEmail.replace(/[^a-z0-9]/gi, '')}`,
-      createdAt: new Date().toISOString(),
-    };
+  const cleanEmail = activeEmail.toLowerCase().trim();
+  const registry = getAccountsRegistry();
+
+  if (registry[cleanEmail]) {
+    return registry[cleanEmail];
   }
 
-  const key = getAccountStorageKey(activeEmail);
-
-  try {
-    const existing = localStorage.getItem(key);
-    if (existing) {
-      const parsed: UserAccount = JSON.parse(existing);
-      if (companyName && parsed.companyName !== companyName) {
-        parsed.companyName = companyName;
-        localStorage.setItem(key, JSON.stringify(parsed));
-      }
-      return parsed;
-    }
-  } catch (e) {
-    console.warn('Error reading account profile:', e);
-  }
-
-  // Generate new unique account with a unique botId
-  const safeEmailTag = activeEmail.split('@')[0].replace(/[^a-z0-9]/gi, '');
+  const safeEmailTag = cleanEmail.split('@')[0].replace(/[^a-z0-9]/gi, '');
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   const newAccount: UserAccount = {
     id: `usr_${Date.now()}`,
-    email: activeEmail,
+    email: cleanEmail,
     companyName: companyName || 'Мой интернет-магазин',
-    botId: `bot_${safeEmailTag}_${randomSuffix}`,
+    botId: `bot_shop_${safeEmailTag || 'main'}_${randomSuffix}`,
     createdAt: new Date().toISOString(),
   };
 
-  try {
-    localStorage.setItem(key, JSON.stringify(newAccount));
-  } catch (e) {
-    console.error('Error saving account profile:', e);
-  }
-
+  registry[cleanEmail] = newAccount;
+  saveAccountsRegistry(registry);
   return newAccount;
 }

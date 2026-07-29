@@ -21,6 +21,7 @@
     botName: 'Ассистент поддержки',
     welcomeMessage: 'Здравствуйте! Чем я могу помочь вам?',
     primaryColor: '#2563eb',
+    themePreset: 'royal',
     toneOfVoice: 'friendly',
     knowledgeText: '',
     faqItems: [],
@@ -75,6 +76,27 @@
     const existingStyle = document.getElementById('ai-chat-pulse-widget-styles');
     if (existingStyle) existingStyle.remove();
 
+    const isWhite = config.themePreset === 'white';
+    const isDark = config.themePreset === 'dark';
+
+    const headerBg = isWhite ? '#ffffff' : isDark ? '#0f172a' : `linear-gradient(135deg, ${config.primaryColor}, #1e40af)`;
+    const headerTextColor = isWhite ? '#0f172a' : '#ffffff';
+    const headerBorder = isWhite ? 'border-bottom: 1px solid #e2e8f0;' : '';
+    const opBtnBg = isWhite ? '#f1f5f9' : 'rgba(255, 255, 255, 0.22)';
+    const opBtnColor = isWhite ? '#0f172a' : '#ffffff';
+    const opBtnBorder = isWhite ? '1px solid #cbd5e1' : '1px solid rgba(255, 255, 255, 0.35)';
+    
+    const windowBg = isDark ? '#090d16' : '#ffffff';
+    const feedBg = isDark ? '#090d16' : '#f8fafc';
+    
+    const botMsgBg = isDark ? '#1e293b' : '#ffffff';
+    const botMsgText = isDark ? '#f8fafc' : '#0f172a';
+    const botMsgBorder = isDark ? '1px solid #334155' : '1px solid #e2e8f0';
+
+    const inputBg = isDark ? '#1e293b' : '#ffffff';
+    const inputText = isDark ? '#f8fafc' : '#0f172a';
+    const inputBorder = isDark ? '#334155' : '#cbd5e1';
+
     const style = document.createElement('style');
     style.id = 'ai-chat-pulse-widget-styles';
     style.textContent = `
@@ -90,9 +112,9 @@
         width: 60px;
         height: 60px;
         border-radius: 50%;
-        background: linear-gradient(135deg, ${config.primaryColor}, #1d4ed8);
+        background: ${isDark ? '#0f172a' : `linear-gradient(135deg, ${config.primaryColor}, #1d4ed8)`};
         color: #ffffff;
-        border: none;
+        border: ${isDark ? '1px solid #334155' : 'none'};
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.1);
         cursor: pointer;
         display: flex;
@@ -115,7 +137,7 @@
         max-width: calc(100vw - 32px);
         height: 540px;
         max-height: calc(100vh - 120px);
-        background: #ffffff;
+        background: ${windowBg};
         border-radius: 20px;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06);
         display: flex;
@@ -133,12 +155,13 @@
         pointer-events: auto;
       }
       .ai-widget-header {
-        background: linear-gradient(135deg, ${config.primaryColor}, #1e40af);
-        color: #ffffff;
+        background: ${headerBg};
+        color: ${headerTextColor};
         padding: 14px 18px;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        ${headerBorder}
         box-shadow: 0 2px 10px rgba(0,0,0,0.08);
       }
       .ai-widget-header-title {
@@ -169,9 +192,9 @@
         gap: 8px;
       }
       .ai-widget-call-op-btn {
-        background: rgba(255, 255, 255, 0.22);
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        color: #ffffff;
+        background: ${opBtnBg};
+        border: ${opBtnBorder};
+        color: ${opBtnColor};
         padding: 4px 10px;
         border-radius: 12px;
         font-size: 11px;
@@ -183,13 +206,13 @@
         transition: background 0.2s ease, transform 0.15s ease;
       }
       .ai-widget-call-op-btn:hover {
-        background: rgba(255, 255, 255, 0.35);
+        opacity: 0.85;
         transform: translateY(-1px);
       }
       .ai-widget-close-btn {
-        background: rgba(255,255,255,0.18);
+        background: ${isWhite ? '#f1f5f9' : 'rgba(255,255,255,0.18)'};
         border: none;
-        color: #ffffff;
+        color: ${isWhite ? '#0f172a' : '#ffffff'};
         width: 28px;
         height: 28px;
         border-radius: 50%;
@@ -202,13 +225,13 @@
         transition: background-color 0.2s ease;
       }
       .ai-widget-close-btn:hover {
-        background: rgba(255,255,255,0.3);
+        opacity: 0.8;
       }
       .ai-widget-messages {
         flex: 1;
         padding: 16px;
         overflow-y: auto;
-        background: #f8fafc;
+        background: ${feedBg};
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -227,15 +250,15 @@
         to { opacity: 1; transform: translateY(0); }
       }
       .ai-widget-message.bot {
-        background: #ffffff;
-        color: #0f172a;
-        border: 1px solid #e2e8f0;
+        background: ${botMsgBg};
+        color: ${botMsgText};
+        border: ${botMsgBorder};
         align-self: flex-start;
         border-bottom-left-radius: 4px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.03);
       }
       .ai-widget-message.user {
-        background-color: ${config.primaryColor};
+        background-color: ${isWhite ? '#0f172a' : config.primaryColor};
         color: #ffffff;
         align-self: flex-end;
         border-bottom-right-radius: 4px;
@@ -248,8 +271,8 @@
         gap: 8px;
       }
       .ai-widget-op-channel-item {
-        background: #f1f5f9;
-        border: 1px solid #cbd5e1;
+        background: ${isDark ? '#1e293b' : '#f1f5f9'};
+        border: ${isDark ? '1px solid #334155' : '1px solid #cbd5e1'};
         border-radius: 12px;
         padding: 10px 12px;
         display: flex;
@@ -259,7 +282,7 @@
       .ai-widget-op-channel-header {
         font-weight: 700;
         font-size: 12px;
-        color: #1e293b;
+        color: ${isDark ? '#f8fafc' : '#1e293b'};
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -269,10 +292,10 @@
         font-size: 12px;
         color: #2563eb;
         word-break: break-all;
-        background: #ffffff;
+        background: ${isDark ? '#0f172a' : '#ffffff'};
         padding: 4px 8px;
         border-radius: 6px;
-        border: 1px solid #e2e8f0;
+        border: ${isDark ? '1px solid #334155' : '1px solid #e2e8f0'};
       }
       .ai-widget-op-channel-actions {
         display: flex;
@@ -289,11 +312,11 @@
         transition: background 0.15s ease;
       }
       .ai-widget-op-copy-btn {
-        background: #e2e8f0;
-        color: #334155;
+        background: ${isDark ? '#334155' : '#e2e8f0'};
+        color: ${isDark ? '#f8fafc' : '#334155'};
       }
       .ai-widget-op-copy-btn:hover {
-        background: #cbd5e1;
+        opacity: 0.85;
       }
       .ai-widget-op-link-btn {
         background: #2563eb;
@@ -306,20 +329,21 @@
       }
       .ai-widget-input-area {
         padding: 12px 14px;
-        background: #ffffff;
-        border-top: 1px solid #e2e8f0;
+        background: ${windowBg};
+        border-top: ${isDark ? '1px solid #1e293b' : '1px solid #e2e8f0'};
         display: flex;
         gap: 10px;
         align-items: center;
       }
       .ai-widget-input {
         flex: 1;
-        border: 1px solid #cbd5e1;
+        border: 1px solid ${inputBorder};
+        background: ${inputBg};
         border-radius: 12px;
         padding: 10px 14px;
         font-size: 13.5px;
         outline: none;
-        color: #0f172a;
+        color: ${inputText};
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
       .ai-widget-input:focus {
@@ -327,7 +351,7 @@
         box-shadow: 0 0 0 3px ${config.primaryColor}22;
       }
       .ai-widget-send-btn {
-        background-color: ${config.primaryColor};
+        background-color: ${isWhite ? '#0f172a' : config.primaryColor};
         color: #ffffff;
         border: none;
         border-radius: 12px;
