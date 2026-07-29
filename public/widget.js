@@ -2,349 +2,430 @@
   if (window.__AI_CHAT_PULSE_WIDGET_LOADED__) return;
   window.__AI_CHAT_PULSE_WIDGET_LOADED__ = true;
 
-  // Read bot ID from script tag
+  // 1. Detect Script Tag & Bot ID & Base API URL
   const scriptTag = document.currentScript || document.querySelector('script[data-bot-id]');
-  const botId = scriptTag ? scriptTag.getAttribute('data-bot-id') || 'demo-bot-123' : 'demo-bot-123';
-
-  // Read configuration helper
-  const getLatestConfig = () => {
-    let currentConfig = {
-      botName: 'Ассистент поддержки',
-      welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?',
-      primaryColor: '#2563eb',
-      toneOfVoice: 'friendly',
-      knowledgeText: 'График работы с 10:00 до 22:00. Инструкция по активации цифровых ключей: зайти в личный кабинет, ввести код. Возврат только при наличии видеозаписи.',
-      faqItems: []
-    };
-
+  const botId = (scriptTag && scriptTag.getAttribute('data-bot-id')) || window.__AI_CHAT_PULSE_BOT_ID__ || 'demo-bot-123';
+  
+  let apiOrigin = '';
+  if (scriptTag && scriptTag.src) {
     try {
-      const saved = localStorage.getItem('ai_widget_config');
-      if (saved) {
-        currentConfig = Object.assign({}, currentConfig, JSON.parse(saved));
+      const url = new URL(scriptTag.src);
+      apiOrigin = url.origin;
+    } catch (e) {
+      apiOrigin = '';
+    }
+  }
+
+  let config = {
+    botId: botId,
+    botName: 'ИИ-Консультант',
+    welcomeMessage: 'Здравствуйте! Чем я могу помочь вам?',
+    primaryColor: '#2563eb',
+    toneOfVoice: 'friendly',
+    knowledgeText: '',
+    faqItems: []
+  };
+
+  // 2. Fetch Remote Config from Server API
+  async function loadRemoteConfig() {
+    try {
+      // First check if there is a locally saved config override (e.g. for live dashboard preview)
+      const localOverride = localStorage.getItem(`ai_bot_config_${botId}`) || localStorage.getItem('ai_widget_config');
+      if (localOverride) {
+        config = Object.assign({}, config, JSON.parse(localOverride));
+      }
+
+      // Then attempt remote API sync
+      const res = await fetch(`${apiOrigin}/api/widget/config?botId=${encodeURIComponent(botId)}`);
+      if (res.ok) {
+        const remoteData = await res.json();
+        if (remoteData && remoteData.botName) {
+          // Merge remote config
+          config = Object.assign({}, config, remoteData);
+          if (localOverride) {
+            config = Object.assign({}, config, JSON.parse(localOverride));
+          }
+        }
       }
     } catch (e) {
-      console.warn('[AI Widget] LocalStorage config parse error:', e);
+      console.warn('[AI Widget] Remote config sync fallback:', e);
     }
-    return currentConfig;
-  };
+  }
 
-  const config = getLatestConfig();
+  // Initializing UI after DOM Ready
+  function initWidget() {
+    loadRemoteConfig().then(() => {
+      renderWidgetUI();
+    }).catch(() => {
+      renderWidgetUI();
+    });
+  }
 
-  // Inject Widget Styles
-  const style = document.createElement('style');
-  style.id = 'ai-chat-pulse-widget-styles';
-  style.textContent = `
-    .ai-widget-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .ai-widget-button {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background-color: ${config.primaryColor};
-      color: #ffffff;
-      border: none;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s ease, background-color 0.2s ease;
-    }
-    .ai-widget-button:hover {
-      transform: scale(1.08);
-    }
-    .ai-widget-window {
-      position: fixed;
-      bottom: 88px;
-      right: 20px;
-      width: 360px;
-      max-width: calc(100vw - 40px);
-      height: 480px;
-      max-height: calc(100vh - 110px);
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
-      border: 1px solid #e2e8f0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      z-index: 999999;
-      opacity: 0;
-      transform: translateY(16px) scale(0.95);
-      pointer-events: none;
-      transition: opacity 0.25s ease, transform 0.25s ease;
-    }
-    .ai-widget-window.open {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      pointer-events: auto;
-    }
-    .ai-widget-header {
-      background-color: ${config.primaryColor};
-      color: #ffffff;
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .ai-widget-header-title {
-      font-weight: 700;
-      font-size: 14px;
-      margin: 0;
-    }
-    .ai-widget-header-subtitle {
-      font-size: 11px;
-      opacity: 0.85;
-      margin: 2px 0 0 0;
-    }
-    .ai-widget-close-btn {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: #ffffff;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .ai-widget-messages {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      background: #f8fafc;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .ai-widget-message {
-      max-width: 82%;
-      padding: 10px 14px;
-      border-radius: 14px;
-      font-size: 13px;
-      line-height: 1.45;
-      word-wrap: break-word;
-    }
-    .ai-widget-message.bot {
-      background: #ffffff;
-      color: #1e293b;
-      border: 1px solid #e2e8f0;
-      align-self: flex-start;
-      border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .ai-widget-message.user {
-      background-color: ${config.primaryColor};
-      color: #ffffff;
-      align-self: flex-end;
-      border-bottom-right-radius: 4px;
-    }
-    .ai-widget-op-btn {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 8px 14px;
-      background-color: #2563eb;
-      color: #ffffff !important;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 12px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(37,99,235,0.3);
-      transition: background-color 0.2s ease;
-    }
-    .ai-widget-op-btn:hover {
-      background-color: #1d4ed8;
-    }
-    .ai-widget-input-area {
-      padding: 12px;
-      background: #ffffff;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
-      gap: 8px;
-    }
-    .ai-widget-input {
-      flex: 1;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 8px 12px;
-      font-size: 13px;
-      outline: none;
-      color: #0f172a;
-    }
-    .ai-widget-input:focus {
-      border-color: ${config.primaryColor};
-    }
-    .ai-widget-send-btn {
-      background-color: ${config.primaryColor};
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      padding: 8px 14px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .ai-widget-send-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  `;
-  document.head.appendChild(style);
+  function renderWidgetUI() {
+    // Inject Widget Styles
+    const existingStyle = document.getElementById('ai-chat-pulse-widget-styles');
+    if (existingStyle) existingStyle.remove();
 
-  // Widget Container
-  const container = document.createElement('div');
-  container.className = 'ai-widget-container';
-  container.id = 'ai-widget-container-root';
+    const style = document.createElement('style');
+    style.id = 'ai-chat-pulse-widget-styles';
+    style.textContent = `
+      .ai-widget-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        box-sizing: border-box;
+      }
+      .ai-widget-button {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, ${config.primaryColor}, #1d4ed8);
+        color: #ffffff;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+      }
+      .ai-widget-button:hover {
+        transform: scale(1.08);
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.3);
+      }
+      .ai-widget-button:active {
+        transform: scale(0.95);
+      }
+      .ai-widget-window {
+        position: fixed;
+        bottom: 96px;
+        right: 24px;
+        width: 380px;
+        max-width: calc(100vw - 32px);
+        height: 520px;
+        max-height: calc(100vh - 120px);
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 999999;
+        opacity: 0;
+        transform: translateY(20px) scale(0.94);
+        pointer-events: none;
+        transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .ai-widget-window.open {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+      }
+      .ai-widget-header {
+        background: linear-gradient(135deg, ${config.primaryColor}, #1e40af);
+        color: #ffffff;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      }
+      .ai-widget-header-title {
+        font-weight: 700;
+        font-size: 15px;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      .ai-widget-header-subtitle {
+        font-size: 11px;
+        opacity: 0.88;
+        margin: 3px 0 0 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ai-widget-online-dot {
+        width: 7px;
+        height: 7px;
+        background-color: #22c55e;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 8px #22c55e;
+      }
+      .ai-widget-close-btn {
+        background: rgba(255,255,255,0.18);
+        border: none;
+        color: #ffffff;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s ease;
+      }
+      .ai-widget-close-btn:hover {
+        background: rgba(255,255,255,0.3);
+      }
+      .ai-widget-messages {
+        flex: 1;
+        padding: 18px;
+        overflow-y: auto;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .ai-widget-message {
+        max-width: 84%;
+        padding: 11px 15px;
+        border-radius: 16px;
+        font-size: 13.5px;
+        line-height: 1.48;
+        word-wrap: break-word;
+        animation: aiMsgFadeIn 0.25s ease-out;
+      }
+      @keyframes aiMsgFadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .ai-widget-message.bot {
+        background: #ffffff;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      }
+      .ai-widget-message.user {
+        background-color: ${config.primaryColor};
+        color: #ffffff;
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+      }
+      .ai-widget-op-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        padding: 8px 14px;
+        background-color: #2563eb;
+        color: #ffffff !important;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 12px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        transition: background-color 0.2s ease, transform 0.15s ease;
+      }
+      .ai-widget-op-btn:hover {
+        background-color: #1d4ed8;
+        transform: translateY(-1px);
+      }
+      .ai-widget-input-area {
+        padding: 12px 14px;
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .ai-widget-input {
+        flex: 1;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13.5px;
+        outline: none;
+        color: #0f172a;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      .ai-widget-input:focus {
+        border-color: ${config.primaryColor};
+        box-shadow: 0 0 0 3px ${config.primaryColor}22;
+      }
+      .ai-widget-send-btn {
+        background-color: ${config.primaryColor};
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: opacity 0.2s ease, transform 0.15s ease;
+      }
+      .ai-widget-send-btn:hover:not(:disabled) {
+        opacity: 0.92;
+        transform: translateY(-1px);
+      }
+      .ai-widget-send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    `;
+    document.head.appendChild(style);
 
-  // Toggle Button
-  const button = document.createElement('button');
-  button.className = 'ai-widget-button';
-  button.id = 'ai-widget-trigger-btn';
-  button.ariaLabel = 'Открыть чат с ИИ-Консультантом';
-  button.innerHTML = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-    </svg>
-  `;
+    // Existing container check
+    const oldContainer = document.getElementById('ai-widget-container-root');
+    if (oldContainer) oldContainer.remove();
 
-  // Chat Window
-  const windowEl = document.createElement('div');
-  windowEl.className = 'ai-widget-window';
-  windowEl.id = 'ai-widget-window-box';
+    // Widget Container
+    const container = document.createElement('div');
+    container.className = 'ai-widget-container';
+    container.id = 'ai-widget-container-root';
 
-  windowEl.innerHTML = `
-    <div class="ai-widget-header">
-      <div>
-        <h4 class="ai-widget-header-title" id="ai-widget-title">${config.botName}</h4>
-        <p class="ai-widget-header-subtitle">Онлайн • Поддержка 24/7</p>
+    // Toggle Button
+    const button = document.createElement('button');
+    button.className = 'ai-widget-button';
+    button.id = 'ai-widget-trigger-btn';
+    button.ariaLabel = 'Открыть чат с ИИ-Консультантом';
+    button.innerHTML = `
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </svg>
+    `;
+
+    // Chat Window
+    const windowEl = document.createElement('div');
+    windowEl.className = 'ai-widget-window';
+    windowEl.id = 'ai-widget-window-box';
+
+    windowEl.innerHTML = `
+      <div class="ai-widget-header">
+        <div>
+          <h4 class="ai-widget-header-title" id="ai-widget-title">${config.botName}</h4>
+          <p class="ai-widget-header-subtitle">
+            <span class="ai-widget-online-dot"></span> онлайн • Поддержка 24/7
+          </p>
+        </div>
+        <button class="ai-widget-close-btn" id="ai-widget-close-btn">&times;</button>
       </div>
-      <button class="ai-widget-close-btn" id="ai-widget-close-btn">&times;</button>
-    </div>
-    <div class="ai-widget-messages" id="ai-widget-messages-list">
-      <div class="ai-widget-message bot">${config.welcomeMessage}</div>
-    </div>
-    <form class="ai-widget-input-area" id="ai-widget-form">
-      <input type="text" class="ai-widget-input" id="ai-widget-input-field" placeholder="Напишите вопрос..." />
-      <button type="submit" class="ai-widget-send-btn" id="ai-widget-submit-btn">Отправить</button>
-    </form>
-  `;
+      <div class="ai-widget-messages" id="ai-widget-messages-list">
+        <div class="ai-widget-message bot">${config.welcomeMessage}</div>
+      </div>
+      <form class="ai-widget-input-area" id="ai-widget-form">
+        <input type="text" class="ai-widget-input" id="ai-widget-input-field" placeholder="Напишите вопрос..." />
+        <button type="submit" class="ai-widget-send-btn" id="ai-widget-submit-btn">Отправить</button>
+      </form>
+    `;
 
-  container.appendChild(windowEl);
-  container.appendChild(button);
-  document.body.appendChild(container);
+    container.appendChild(windowEl);
+    container.appendChild(button);
+    document.body.appendChild(container);
 
-  // Interaction State & Event Listeners
-  let isOpen = false;
-  const history = [{ sender: 'bot', text: config.welcomeMessage }];
+    // Interactions
+    let isOpen = false;
+    const history = [{ sender: 'bot', text: config.welcomeMessage }];
 
-  const toggleWidget = () => {
-    isOpen = !isOpen;
-    if (isOpen) {
-      windowEl.classList.add('open');
-      document.getElementById('ai-widget-input-field').focus();
-    } else {
-      windowEl.classList.remove('open');
-    }
-  };
+    const toggleWidget = () => {
+      isOpen = !isOpen;
+      if (isOpen) {
+        windowEl.classList.add('open');
+        document.getElementById('ai-widget-input-field').focus();
+      } else {
+        windowEl.classList.remove('open');
+      }
+    };
 
-  button.addEventListener('click', toggleWidget);
-  document.getElementById('ai-widget-close-btn').addEventListener('click', toggleWidget);
+    button.addEventListener('click', toggleWidget);
+    document.getElementById('ai-widget-close-btn').addEventListener('click', toggleWidget);
 
-  const form = document.getElementById('ai-widget-form');
-  const inputEl = document.getElementById('ai-widget-input-field');
-  const messagesList = document.getElementById('ai-widget-messages-list');
-  const submitBtn = document.getElementById('ai-widget-submit-btn');
+    const form = document.getElementById('ai-widget-form');
+    const inputEl = document.getElementById('ai-widget-input-field');
+    const messagesList = document.getElementById('ai-widget-messages-list');
+    const submitBtn = document.getElementById('ai-widget-submit-btn');
 
-  const appendMessage = (sender, text, operatorLink, operatorChannels) => {
-    const msgEl = document.createElement('div');
-    msgEl.className = `ai-widget-message ${sender}`;
-    msgEl.innerHTML = text;
+    const appendMessage = (sender, text, operatorLink, operatorChannels) => {
+      const msgEl = document.createElement('div');
+      msgEl.className = `ai-widget-message ${sender}`;
+      msgEl.innerHTML = text;
 
-    if (operatorChannels && Array.isArray(operatorChannels) && operatorChannels.length > 0) {
-      operatorChannels.forEach(ch => {
+      if (operatorChannels && Array.isArray(operatorChannels) && operatorChannels.length > 0) {
+        const btnContainer = document.createElement('div');
+        btnContainer.style.marginTop = '6px';
+        operatorChannels.forEach(ch => {
+          const btn = document.createElement('a');
+          btn.href = ch.link;
+          btn.target = '_blank';
+          btn.className = 'ai-widget-op-btn';
+          btn.style.marginRight = '6px';
+          btn.style.marginBottom = '6px';
+          btn.textContent = ch.label;
+          btnContainer.appendChild(btn);
+        });
+        msgEl.appendChild(btnContainer);
+      } else if (operatorLink && operatorLink !== '#') {
         const btn = document.createElement('a');
-        btn.href = ch.link;
+        btn.href = operatorLink;
         btn.target = '_blank';
         btn.className = 'ai-widget-op-btn';
-        btn.style.marginRight = '6px';
-        btn.style.marginBottom = '6px';
-        btn.textContent = ch.label;
+        btn.textContent = '💬 Написать оператору напрямую';
         msgEl.appendChild(document.createElement('br'));
         msgEl.appendChild(btn);
-      });
-    } else if (operatorLink && operatorLink !== '#') {
-      const btn = document.createElement('a');
-      btn.href = operatorLink;
-      btn.target = '_blank';
-      btn.className = 'ai-widget-op-btn';
-      btn.textContent = '💬 Написать оператору напрямую';
-      msgEl.appendChild(document.createElement('br'));
-      msgEl.appendChild(btn);
-    }
+      }
 
-    messagesList.appendChild(msgEl);
-    messagesList.scrollTop = messagesList.scrollHeight;
-  };
+      messagesList.appendChild(msgEl);
+      messagesList.scrollTop = messagesList.scrollHeight;
+    };
 
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const messageText = inputEl.value.trim();
-    if (!messageText) return;
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const messageText = inputEl.value.trim();
+      if (!messageText) return;
 
-    inputEl.value = '';
-    appendMessage('user', messageText);
-    history.push({ sender: 'user', text: messageText });
+      inputEl.value = '';
+      appendMessage('user', messageText);
+      history.push({ sender: 'user', text: messageText });
 
-    // Show loading indicator
-    submitBtn.disabled = true;
-    const loadingMsgEl = document.createElement('div');
-    loadingMsgEl.className = 'ai-widget-message bot';
-    loadingMsgEl.id = 'ai-widget-loading-msg';
-    loadingMsgEl.textContent = 'Печатает...';
-    messagesList.appendChild(loadingMsgEl);
-    messagesList.scrollTop = messagesList.scrollHeight;
+      submitBtn.disabled = true;
+      const loadingMsgEl = document.createElement('div');
+      loadingMsgEl.className = 'ai-widget-message bot';
+      loadingMsgEl.id = 'ai-widget-loading-msg';
+      loadingMsgEl.textContent = 'Печатает...';
+      messagesList.appendChild(loadingMsgEl);
+      messagesList.scrollTop = messagesList.scrollHeight;
 
-    // Fetch latest config from localStorage
-    const activeConfig = getLatestConfig();
+      try {
+        const response = await fetch(`${apiOrigin}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            botId: botId,
+            message: messageText,
+            history: history,
+            config: config
+          }),
+        });
 
-    try {
-      // Send message to API Route /api/chat
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          botId: botId,
-          message: messageText,
-          history: history,
-          config: activeConfig
-        }),
-      });
+        const data = await response.json();
+        const loadingEl = document.getElementById('ai-widget-loading-msg');
+        if (loadingEl) loadingEl.remove();
 
-      const data = await response.json();
-      const loadingEl = document.getElementById('ai-widget-loading-msg');
-      if (loadingEl) loadingEl.remove();
+        const botReply = data.response || 'Извините, передаю ваш вопрос живому оператору.';
+        appendMessage('bot', botReply, data.operatorLink, data.operatorChannels);
+        history.push({ sender: 'bot', text: botReply });
+      } catch (err) {
+        console.error('[AI Widget] API call error:', err);
+        const loadingEl = document.getElementById('ai-widget-loading-msg');
+        if (loadingEl) loadingEl.remove();
 
-      const botReply = data.response || 'Извините, передаю ваш вопрос живому оператору.';
-      appendMessage('bot', botReply, data.operatorLink, data.operatorChannels);
-      history.push({ sender: 'bot', text: botReply });
-    } catch (err) {
-      console.error('[AI Widget] API call error:', err);
-      const loadingEl = document.getElementById('ai-widget-loading-msg');
-      if (loadingEl) loadingEl.remove();
+        appendMessage('bot', 'Извините, возникла ошибка соединения. Передаю ваш вопрос живому оператору.');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
 
-      appendMessage('bot', 'Извините, возникла ошибка соединения. Передаю ваш вопрос живому оператору.');
-    } finally {
-      submitBtn.disabled = false;
-    }
-  });
-
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWidget);
+  } else {
+    initWidget();
+  }
 })();

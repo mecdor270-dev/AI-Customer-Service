@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, ArrowRight, Lock, Mail, Building, User, Sparkles } from 'lucide-react';
+import { setCurrentUserEmail, getOrCreateAccount } from '@/lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,14 +19,13 @@ export default function RegisterPage() {
     if (!email || !password) return;
     setLoading(true);
 
-    localStorage.setItem('ai_user_logged_in', 'true');
-    localStorage.setItem('ai_user_email', email);
-    if (company) localStorage.setItem('ai_user_company', company);
+    setCurrentUserEmail(email);
+    getOrCreateAccount(email, company || name);
 
     setTimeout(() => {
       setLoading(false);
       router.push('/dashboard');
-    }, 600);
+    }, 400);
   };
 
   return (

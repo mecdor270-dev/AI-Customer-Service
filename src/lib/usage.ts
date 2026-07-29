@@ -1,3 +1,5 @@
+import { getCurrentUserEmail } from './auth';
+
 export interface UserSubscription {
   isPremium: boolean;
   plan: 'Starter' | 'Pro' | 'Max';
@@ -8,7 +10,11 @@ export interface UserSubscription {
   paymentMethod?: string;
 }
 
-const STORAGE_KEY = 'ai_user_subscription';
+export function getSubscriptionStorageKey(targetEmail?: string): string {
+  const email = targetEmail || getCurrentUserEmail();
+  const safeEmail = email.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  return `ai_user_subscription_${safeEmail}`;
+}
 
 export function getMSKDateString(): string {
   const now = new Date();
@@ -17,7 +23,8 @@ export function getMSKDateString(): string {
   return mskTime.toISOString().split('T')[0];
 }
 
-export function getSubscription(): UserSubscription {
+export function getSubscription(targetEmail?: string): UserSubscription {
+  const email = targetEmail || getCurrentUserEmail();
   if (typeof window === 'undefined') {
     return {
       isPremium: false,
@@ -29,8 +36,9 @@ export function getSubscription(): UserSubscription {
     };
   }
 
+  const key = getSubscriptionStorageKey(email);
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(key);
     if (saved) {
       const parsed: UserSubscription = JSON.parse(saved);
       const todayMSK = getMSKDateString();
@@ -39,7 +47,7 @@ export function getSubscription(): UserSubscription {
       if (parsed.lastResetDate !== todayMSK) {
         parsed.dailyUsageCount = 0;
         parsed.lastResetDate = todayMSK;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        localStorage.setItem(key, JSON.stringify(parsed));
       }
       return parsed;
     }
@@ -57,7 +65,7 @@ export function getSubscription(): UserSubscription {
   };
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+    localStorage.setItem(key, JSON.stringify(initial));
   } catch (e) {
     console.error('Error saving initial subscription:', e);
   }
@@ -65,17 +73,21 @@ export function getSubscription(): UserSubscription {
   return initial;
 }
 
-export function saveSubscription(sub: UserSubscription): void {
+export function saveSubscription(sub: UserSubscription, targetEmail?: string): void {
   if (typeof window === 'undefined') return;
+  const email = targetEmail || getCurrentUserEmail();
+  const key = getSubscriptionStorageKey(email);
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sub));
+    localStorage.setItem(key, JSON.stringify(sub));
   } catch (e) {
     console.error('Error saving subscription to localStorage:', e);
   }
 }
 
-export function activatePlan(plan: 'Pro' | 'Max', gateway: string = 'LavaPay'): UserSubscription {
-  const current = getSubscription();
+export function activatePlan(plan: 'Pro' | 'Max', gateway: string = 'LavaPay', targetEmail?: string): UserSubscription {
+  const email = targetEmail || getCurrentUserEmail();
+  const current = getSubscription(email);
   const maxLimit = plan === 'Pro' ? 2000 : 6000;
 
   const updated: UserSubscription = {
@@ -88,16 +100,17 @@ export function activatePlan(plan: 'Pro' | 'Max', gateway: string = 'LavaPay'): 
     paymentMethod: gateway,
   };
 
-  saveSubscription(updated);
+  saveSubscription(updated, email);
   return updated;
 }
 
-export function activateProDemo(gateway: string = 'LavaPay'): UserSubscription {
-  return activatePlan('Pro', gateway);
+export function activateProDemo(gateway: string = 'LavaPay', targetEmail?: string): UserSubscription {
+  return activatePlan('Pro', gateway, targetEmail);
 }
 
-export function incrementUsage(): UserSubscription {
-  const current = getSubscription();
+export function incrementUsage(targetEmail?: string): UserSubscription {
+  const email = targetEmail || getCurrentUserEmail();
+  const current = getSubscription(email);
   const todayMSK = getMSKDateString();
 
   let dailyCount = current.dailyUsageCount || 0;
@@ -112,6 +125,6 @@ export function incrementUsage(): UserSubscription {
     lastResetDate: todayMSK,
   };
 
-  saveSubscription(updated);
+  saveSubscription(updated, email);
   return updated;
 }

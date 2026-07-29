@@ -153,12 +153,20 @@ export async function POST(req: Request) {
     if (apiKey) {
       try {
         const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
-          contents: `${systemPrompt}\n\nВопрос клиента: ${message}`,
-        });
+        let response;
+        try {
+          response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `${systemPrompt}\n\nВопрос клиента: ${message}`,
+          });
+        } catch (err25) {
+          response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `${systemPrompt}\n\nВопрос клиента: ${message}`,
+          });
+        }
 
-        if (response.text) {
+        if (response && response.text) {
           const rawText = response.text.trim();
           // Security Sanitize output
           if (rawText.includes('API_KEY') || rawText.includes('password') || rawText.includes('usr_')) {

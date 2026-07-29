@@ -58,6 +58,7 @@ import { getAIResponse } from '@/lib/gemini';
 import { WidgetConfig, FAQItem } from '@/types';
 import { getSubscription, UserSubscription } from '@/lib/usage';
 import { getProjects, saveProjects, getActiveProjectId, setActiveProjectId, createNewProject, Project } from '@/lib/projects';
+import { logoutUser, getCurrentUserEmail, getOrCreateAccount } from '@/lib/auth';
 import { getLanguage, setLanguage, translations, Language } from '@/lib/i18n';
 
 export default function DashboardPage() {
@@ -239,10 +240,10 @@ export default function DashboardPage() {
 
   // Logout Handler
   const handleLogout = () => {
-    localStorage.removeItem('ai_user_logged_in');
+    logoutUser();
     showToast('Вы вышли из системы');
     setTimeout(() => {
-      router.push('/');
+      router.push('/auth/login');
     }, 400);
   };
 
@@ -495,6 +496,7 @@ export default function DashboardPage() {
         <div className="p-3 border-t border-slate-200/80 dark:border-zinc-800/80 relative">
           
           <div
+            id="dash-profile-menu-trigger"
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`w-full p-2.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all shadow-xs group ${
               themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800' : 'bg-slate-100 border-slate-200 hover:bg-slate-200/80'
@@ -606,6 +608,7 @@ export default function DashboardPage() {
 
               {/* Menu Item 6: Выйти */}
               <button
+                id="dash-logout-btn"
                 onClick={handleLogout}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors"
               >

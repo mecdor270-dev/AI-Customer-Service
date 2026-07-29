@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, ArrowRight, Lock, Mail, Sparkles, CheckCircle2 } from 'lucide-react';
+import { setCurrentUserEmail, getOrCreateAccount } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,14 +17,14 @@ export default function LoginPage() {
     if (!email) return;
     setLoading(true);
     
-    // Store simple auth state
-    localStorage.setItem('ai_user_logged_in', 'true');
-    localStorage.setItem('ai_user_email', email);
+    // Store user-isolated auth state & initialize user account
+    setCurrentUserEmail(email);
+    getOrCreateAccount(email);
 
     setTimeout(() => {
       setLoading(false);
       router.push('/dashboard');
-    }, 600);
+    }, 400);
   };
 
   return (
