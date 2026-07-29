@@ -55,27 +55,51 @@ export async function POST(req: Request) {
     // 2. Operator Escalation Request Check
     const isOperatorRequest = OPERATOR_PATTERNS.some((pattern) => pattern.test(lowerMessage));
     if (isOperatorRequest) {
-      let operatorLink = '#';
-      let dest = operatorRouting?.destination || '@support_store_bot';
-      const type = operatorRouting?.type || 'telegram';
+      const channels = [];
+      const opObj = operatorRouting || {};
 
-      if (type === 'telegram') {
-        const cleanDest = dest.replace('@', '');
-        operatorLink = `https://t.me/${cleanDest}`;
-      } else if (type === 'whatsapp') {
-        const cleanNum = dest.replace(/[^0-9]/g, '');
-        operatorLink = `https://wa.me/${cleanNum}`;
-      } else if (type === 'email') {
-        operatorLink = `mailto:${dest}`;
+      const tg = opObj.telegram || opObj.destination || '@support_store_bot';
+      if (tg) {
+        channels.push({
+          type: 'telegram',
+          label: '💬 Написать в Telegram',
+          link: `https://t.me/${tg.replace('@', '')}`
+        });
+      }
+
+      const wa = opObj.whatsapp;
+      if (wa) {
+        channels.push({
+          type: 'whatsapp',
+          label: '💚 Написать в WhatsApp',
+          link: `https://wa.me/${wa.replace(/[^0-9]/g, '')}`
+        });
+      }
+
+      const email = opObj.email;
+      if (email) {
+        channels.push({
+          type: 'email',
+          label: '✉️ Написать на Email',
+          link: `mailto:${email}`
+        });
+      }
+
+      const custom = opObj.custom || opObj.other;
+      if (custom) {
+        channels.push({
+          type: 'custom',
+          label: '🌐 Открыть контакты оператора',
+          link: custom.startsWith('http') ? custom : `https://${custom}`
+        });
       }
 
       return NextResponse.json({
         botId: botId || 'bot_shop_default',
-        response: `Переводжу ваш запрос на живого оператора. Вы можете сразу написать менеджеру напрямую:`,
+        response: `Перевожу ваш запрос на живого оператора! Выберите удобный способ связи с нашей поддержкой:`,
         operatorEscalation: true,
-        operatorType: type,
-        operatorLink: operatorLink,
-        operatorDestination: dest,
+        operatorChannels: channels,
+        operatorLink: channels[0]?.link || '#',
       });
     }
 

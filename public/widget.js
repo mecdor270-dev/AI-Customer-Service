@@ -264,12 +264,24 @@
   const messagesList = document.getElementById('ai-widget-messages-list');
   const submitBtn = document.getElementById('ai-widget-submit-btn');
 
-  const appendMessage = (sender, text, operatorLink) => {
+  const appendMessage = (sender, text, operatorLink, operatorChannels) => {
     const msgEl = document.createElement('div');
     msgEl.className = `ai-widget-message ${sender}`;
     msgEl.innerHTML = text;
 
-    if (operatorLink && operatorLink !== '#') {
+    if (operatorChannels && Array.isArray(operatorChannels) && operatorChannels.length > 0) {
+      operatorChannels.forEach(ch => {
+        const btn = document.createElement('a');
+        btn.href = ch.link;
+        btn.target = '_blank';
+        btn.className = 'ai-widget-op-btn';
+        btn.style.marginRight = '6px';
+        btn.style.marginBottom = '6px';
+        btn.textContent = ch.label;
+        msgEl.appendChild(document.createElement('br'));
+        msgEl.appendChild(btn);
+      });
+    } else if (operatorLink && operatorLink !== '#') {
       const btn = document.createElement('a');
       btn.href = operatorLink;
       btn.target = '_blank';
@@ -322,7 +334,7 @@
       if (loadingEl) loadingEl.remove();
 
       const botReply = data.response || 'Извините, передаю ваш вопрос живому оператору.';
-      appendMessage('bot', botReply, data.operatorLink);
+      appendMessage('bot', botReply, data.operatorLink, data.operatorChannels);
       history.push({ sender: 'bot', text: botReply });
     } catch (err) {
       console.error('[AI Widget] API call error:', err);

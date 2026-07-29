@@ -49,7 +49,9 @@ import {
   Zap,
   Crown,
   Terminal,
-  FileCode2
+  FileCode2,
+  Mail,
+  SendHorizontal
 } from 'lucide-react';
 import { generateEmbedScript } from '@/lib/utils';
 import { getAIResponse } from '@/lib/gemini';
@@ -62,8 +64,8 @@ export default function DashboardPage() {
   const router = useRouter();
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'overview' | 'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'analytics' | 'billing' | 'security'>('embed');
-  const [platformTab, setPlatformTab] = useState<'tilda' | 'wordpress' | 'shopify' | 'html'>('tilda');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bot_settings' | 'knowledge' | 'operator' | 'embed' | 'analytics' | 'billing' | 'security'>('overview');
+  const [platformTab, setPlatformTab] = useState<'tilda' | 'wordpress' | 'shopify' | 'custom'>('custom');
 
   // Multi-Project Management State
   const [projects, setProjects] = useState<Project[]>([]);
@@ -73,31 +75,36 @@ export default function DashboardPage() {
   const [newProjCategory, setNewProjCategory] = useState('');
   const [newProjDesc, setNewProjDesc] = useState('');
 
-  // User Profile & ChatGPT-Style Bottom-Left Menu State
+  // User Profile & Settings Modal State
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [userName, setUserName] = useState('Михаил');
   const [userEmail, setUserEmail] = useState('mikhail@store.ru');
 
-  // Theme & Language State
-  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
+  // Theme & Language State - DEFAULT THEME IS LIGHT MODE AS REQUESTED
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
   const [lang, setLang] = useState<Language>('ru');
 
-  // Integration Check Tool State
-  const [testDomain, setTestDomain] = useState('');
-  const [testResult, setTestResult] = useState<string | null>(null);
+  // 4 Independent Operator Channels State
+  const [opTelegram, setOpTelegram] = useState('@support_store_bot');
+  const [opWhatsapp, setOpWhatsapp] = useState('+79001234567');
+  const [opEmail, setOpEmail] = useState('support@store.ru');
+  const [opCustom, setOpCustom] = useState('https://store.ru/help');
+  const [opSubTab, setOpSubTab] = useState<'telegram' | 'whatsapp' | 'email' | 'custom'>('telegram');
 
-  // Widget Configuration & Operator Routing State
+  // Developer email copy state
+  const [devEmailCopied, setDevEmailCopied] = useState(false);
+
+  // Widget Configuration State
   const [config, setConfig] = useState<WidgetConfig>({
     botName: 'Ассистент поддержки',
-    welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?',
+    welcomeMessage: 'Здравствуйте! Чем я могу помочь вам в нашем магазине?',
     primaryColor: '#2563eb',
     toneOfVoice: 'friendly',
     knowledgeText: 'График работы с 10:00 до 22:00. Инструкция по активации цифровых ключей: зайти в личный кабинет, ввести код.',
     faqItems: []
   });
-  const [operatorType, setOperatorType] = useState<'telegram' | 'whatsapp' | 'email' | 'webhook'>('telegram');
-  const [operatorDest, setOperatorDest] = useState('@support_store_bot');
 
   const [sub, setSub] = useState<UserSubscription>({
     isPremium: false,
@@ -115,7 +122,7 @@ export default function DashboardPage() {
 
   // Live Test Chat Messages inside Preview
   const [testMessages, setTestMessages] = useState([
-    { sender: 'bot', text: 'Здравствуйте! Чем я могу помочь вам в нашем цифровом магазине?' }
+    { sender: 'bot', text: 'Здравствуйте! Чем я могу помочь вам в нашем магазине?' }
   ]);
   const [testInput, setTestInput] = useState('');
   const [testLoading, setTestLoading] = useState(false);
@@ -130,8 +137,6 @@ export default function DashboardPage() {
     if (current) {
       setActiveProject(current);
       setConfig(current.config);
-      setOperatorType(current.operatorRouting?.type || 'telegram');
-      setOperatorDest(current.operatorRouting?.destination || '@support_store_bot');
       setTestMessages([{ sender: 'bot', text: current.config.welcomeMessage }]);
     }
 
@@ -153,7 +158,7 @@ export default function DashboardPage() {
   const t = translations[lang];
 
   // Save current project updates
-  const saveCurrentProjectConfig = (updatedConfig: WidgetConfig, updatedOpType = operatorType, updatedOpDest = operatorDest) => {
+  const saveCurrentProjectConfig = (updatedConfig: WidgetConfig) => {
     setConfig(updatedConfig);
     if (!activeProject) return;
 
@@ -161,8 +166,8 @@ export default function DashboardPage() {
       ...activeProject,
       config: updatedConfig,
       operatorRouting: {
-        type: updatedOpType,
-        destination: updatedOpDest,
+        type: 'telegram',
+        destination: opTelegram,
         enabled: true,
       }
     };
@@ -195,8 +200,6 @@ export default function DashboardPage() {
       setActiveProjectId(target.id);
       setActiveProject(target);
       setConfig(target.config);
-      setOperatorType(target.operatorRouting?.type || 'telegram');
-      setOperatorDest(target.operatorRouting?.destination || '@support_store_bot');
       setTestMessages([{ sender: 'bot', text: target.config.welcomeMessage }]);
       showToast(`Переключено на проект: ${target.name}`);
     }
@@ -222,17 +225,16 @@ export default function DashboardPage() {
   };
 
   // Toggle Language (RU <-> EN)
-  const handleToggleLanguage = () => {
-    const nextLang = lang === 'ru' ? 'en' : 'ru';
-    setLang(nextLang);
-    setLanguage(nextLang);
-    showToast(nextLang === 'ru' ? 'Язык переключен на Русский' : 'Language switched to English');
+  const handleToggleLanguage = (targetLang: Language) => {
+    setLang(targetLang);
+    setLanguage(targetLang);
+    showToast(targetLang === 'ru' ? 'Язык переключен на Русский' : 'Language switched to English');
   };
 
-  // Toggle Theme (Dark <-> Light)
+  // Toggle Theme (Light <-> Dark)
   const handleToggleTheme = () => {
-    setThemeMode(prev => prev === 'dark' ? 'light' : 'dark');
-    showToast(themeMode === 'dark' ? 'Переключено на Светлую тему' : 'Переключено на Тёмную тему');
+    setThemeMode(prev => prev === 'light' ? 'dark' : 'light');
+    showToast(themeMode === 'light' ? 'Переключено на Тёмную тему' : 'Переключено на Светлую тему');
   };
 
   // Logout Handler
@@ -284,11 +286,14 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Domain integration ping check
-  const handleTestIntegration = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!testDomain.trim()) return;
-    setTestResult('Пингуем сайт... Связь подтверждена! Виджет успешно подключен и готов отвечать клиентам.');
+  // Copy developer email instructions
+  const handleCopyDevEmail = () => {
+    const botId = activeProject ? activeProject.botId : 'bot_proj_98231a';
+    const emailBody = `Привет!\nПожалуйста, вставь этот 1-строчный скрипт виджета ИИ-поддержки на наш сайт перед закрывающим тегом </body>:\n\n<script src="http://localhost:3000/widget.js" data-bot-id="${botId}" defer></script>\n\nСпасибо!`;
+    navigator.clipboard.writeText(emailBody);
+    setDevEmailCopied(true);
+    showToast('Текст инструкции программисту скопирован!');
+    setTimeout(() => setDevEmailCopied(false), 2500);
   };
 
   // Toast Trigger
@@ -322,7 +327,7 @@ export default function DashboardPage() {
 
   return (
     <div className={`w-screen h-screen flex overflow-hidden font-sans selection:bg-blue-600 selection:text-white ${
-      themeMode === 'dark' ? 'bg-[#09090b] text-slate-100' : 'bg-slate-100 text-slate-900'
+      themeMode === 'dark' ? 'bg-[#09090b] text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       
       {/* Toast Notification Container */}
@@ -339,16 +344,16 @@ export default function DashboardPage() {
       }`}>
         
         {/* Top Vercel Project Switcher Header */}
-        <div className="p-3.5 border-b border-zinc-800/80 space-y-3">
+        <div className="p-3.5 border-b border-slate-200/80 dark:border-zinc-800/80 space-y-3">
           
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2 group">
               <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
                 <Bot className="w-4 h-4" />
               </div>
-              <span className="font-extrabold text-sm text-white tracking-tight">ChatPulse</span>
+              <span className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">ChatPulse</span>
             </Link>
-            <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20">
+            <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-md border border-blue-500/20">
               {sub.plan}
             </span>
           </div>
@@ -361,7 +366,7 @@ export default function DashboardPage() {
               className={`w-full text-xs font-bold px-3 py-2 rounded-xl border focus:outline-none appearance-none cursor-pointer ${
                 themeMode === 'dark'
                   ? 'bg-zinc-900 border-zinc-800 text-white hover:border-zinc-700'
-                  : 'bg-slate-50 border-slate-300 text-slate-900'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 hover:border-slate-400'
               }`}
             >
               {projects.map(p => (
@@ -376,9 +381,9 @@ export default function DashboardPage() {
           {/* Quick Add Project Button */}
           <button
             onClick={() => setIsAddProjectModalOpen(true)}
-            className="w-full py-1.5 px-3 bg-zinc-800/70 hover:bg-zinc-800 text-slate-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-zinc-700/50"
+            className="w-full py-1.5 px-3 bg-slate-100 dark:bg-zinc-800/70 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-700/50"
           >
-            <Plus className="w-3.5 h-3.5 text-blue-400" />
+            <Plus className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>{t.addProject}</span>
           </button>
         </div>
@@ -386,14 +391,14 @@ export default function DashboardPage() {
         {/* Full Menu Navigation Sections */}
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 scrollbar-thin">
           
-          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Разделы системы</div>
+          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Разделы системы</div>
 
           <button
             onClick={() => setActiveTab('overview')}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'overview'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -405,7 +410,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'bot_settings'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Palette className="w-4 h-4" />
@@ -417,7 +422,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'knowledge'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <BookOpen className="w-4 h-4" />
@@ -429,7 +434,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'operator'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Headphones className="w-4 h-4" />
@@ -441,7 +446,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'embed'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Code2 className="w-4 h-4" />
@@ -453,7 +458,7 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'analytics'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -465,10 +470,10 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'billing'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <CreditCard className="w-4 h-4 text-emerald-400" />
+            <CreditCard className="w-4 h-4 text-emerald-500" />
             <span>{t.billingTab}</span>
           </button>
 
@@ -477,31 +482,33 @@ export default function DashboardPage() {
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'security'
                 ? 'bg-blue-600 text-white shadow-md'
-                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100'
+                : themeMode === 'dark' ? 'text-slate-400 hover:bg-zinc-900 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-purple-400" />
+            <ShieldCheck className="w-4 h-4 text-purple-500" />
             <span>Безопасность ИИ</span>
           </button>
 
         </div>
 
         {/* CHATGPT-STYLE BOTTOM-LEFT USER PROFILE CARD */}
-        <div className="p-3 border-t border-zinc-800/80 relative">
+        <div className="p-3 border-t border-slate-200/80 dark:border-zinc-800/80 relative">
           
           <div
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-2 flex items-center justify-between cursor-pointer transition-all shadow-md group"
+            className={`w-full p-2.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all shadow-xs group ${
+              themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800' : 'bg-slate-100 border-slate-200 hover:bg-slate-200/80'
+            }`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
                 МЕ
               </div>
               <div className="flex flex-col min-w-0 text-left">
-                <span className="font-bold text-xs text-white truncate group-hover:text-blue-400 transition-colors">
+                <span className="font-bold text-xs text-slate-900 dark:text-white truncate group-hover:text-blue-600 transition-colors">
                   {userName}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] text-slate-500 font-medium">
                   {sub.isPremium ? `${sub.plan} Plan` : 'Free'}
                 </span>
               </div>
@@ -509,9 +516,9 @@ export default function DashboardPage() {
 
             {!sub.isPremium && (
               <Link
-                href="/dashboard/billing"
+                href="/pricing"
                 onClick={(e) => e.stopPropagation()}
-                className="px-2.5 py-1 bg-zinc-800 hover:bg-blue-600 text-white text-[11px] font-bold rounded-xl transition-all border border-zinc-700 hover:border-blue-500 shrink-0"
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-xl transition-all shadow-xs shrink-0"
               >
                 {t.upgradeBtn}
               </Link>
@@ -520,76 +527,87 @@ export default function DashboardPage() {
 
           {/* CHATGPT-STYLE POPUP MENU */}
           {isProfileMenuOpen && (
-            <div className="absolute bottom-16 left-3 w-60 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-slate-200 text-xs font-medium space-y-1">
+            <div className={`absolute bottom-16 left-3 w-60 border rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-xs font-medium space-y-1 ${
+              themeMode === 'dark' ? 'bg-zinc-900 border-zinc-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+            }`}>
               
-              <div className="px-3 py-2 flex items-center justify-between border-b border-zinc-800">
+              <div className="px-3 py-2 flex items-center justify-between border-b border-slate-200 dark:border-zinc-800">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
                     МЕ
                   </div>
                   <div>
-                    <div className="font-bold text-white text-xs">{userName}</div>
-                    <div className="text-[10px] text-slate-400">{sub.plan} Plan</div>
+                    <div className="font-bold text-slate-900 dark:text-white text-xs">{userName}</div>
+                    <div className="text-[10px] text-slate-500">{sub.plan} Plan</div>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               </div>
 
+              {/* Menu Item 1: Изменить план */}
               <Link
-                href="/dashboard/billing"
+                href="/pricing"
                 onClick={() => setIsProfileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               >
-                <Sparkles className="w-4 h-4 text-amber-400" />
+                <Sparkles className="w-4 h-4 text-amber-500" />
                 <span>{t.changePlan}</span>
               </Link>
 
+              {/* Menu Item 2: Персонализация */}
               <button
                 onClick={handleToggleTheme}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left"
               >
-                {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+                {themeMode === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
                 <span>{t.personalization} ({themeMode === 'dark' ? 'Тёмная' : 'Светлая'})</span>
               </button>
 
+              {/* Menu Item 3: Профиль */}
               <button
                 onClick={() => {
                   setIsProfileMenuOpen(false);
                   setIsProfileModalOpen(true);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left"
               >
-                <UserIcon className="w-4 h-4 text-blue-400" />
+                <UserIcon className="w-4 h-4 text-blue-500" />
                 <span>{t.profile}</span>
               </button>
 
+              {/* Menu Item 4: Настройки (OPENS SETTINGS MODAL INSTEAD OF AUTO TOGGLING) */}
               <button
-                onClick={handleToggleLanguage}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors text-left"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  setIsSettingsModalOpen(true);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-left font-semibold text-blue-600 dark:text-blue-400"
               >
-                <Settings className="w-4 h-4 text-slate-400" />
+                <Settings className="w-4 h-4 text-blue-500" />
                 <span>{t.settings} ({lang.toUpperCase()})</span>
               </button>
 
-              <div className="border-t border-zinc-800 my-1"></div>
+              <div className="border-t border-slate-200 dark:border-zinc-800 my-1"></div>
 
+              {/* Menu Item 5: Справка */}
               <button
                 onClick={() => {
                   setIsProfileMenuOpen(false);
                   setActiveTab('embed');
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-800 text-slate-200 hover:text-white transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <HelpCircle className="w-4 h-4 text-emerald-400" />
+                  <HelpCircle className="w-4 h-4 text-emerald-500" />
                   <span>{t.help}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
 
+              {/* Menu Item 6: Выйти */}
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <LogOut className="w-4 h-4" />
@@ -606,26 +624,30 @@ export default function DashboardPage() {
       </aside>
 
       {/* MAIN FULL-SCREEN WORKSPACE CANVAS */}
-      <main className="flex-1 h-screen overflow-y-auto bg-[#09090b] flex flex-col">
+      <main className={`flex-1 h-screen overflow-y-auto flex flex-col ${
+        themeMode === 'dark' ? 'bg-[#09090b]' : 'bg-slate-50'
+      }`}>
         
         {/* Top Breadcrumb & Controls Header */}
-        <div className="px-6 py-3.5 border-b border-zinc-800 flex items-center justify-between bg-[#0d0d0e] sticky top-0 z-30">
+        <div className={`px-6 py-3.5 border-b flex items-center justify-between sticky top-0 z-30 ${
+          themeMode === 'dark' ? 'bg-[#0d0d0e] border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+        }`}>
           <div className="flex items-center gap-3">
-            <h1 className="font-bold text-white text-sm">
-              {activeProject?.name || 'Проект'} <span className="text-slate-500 text-xs font-normal">/ {activeTab}</span>
+            <h1 className="font-bold text-slate-900 dark:text-white text-sm">
+              {activeProject?.name || 'Проект'} <span className="text-slate-400 text-xs font-normal">/ {activeTab}</span>
             </h1>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
               Bot ID: {activeProject?.botId}
             </span>
           </div>
 
           <div className="flex items-center gap-3 text-xs">
-            <span className="text-slate-400 hidden sm:inline">
-              Дневной лимит (00:00 МСК): <span className="font-bold text-white">{sub.dailyUsageCount || 0}/{sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30}</span>
+            <span className="text-slate-500 dark:text-slate-400 hidden sm:inline">
+              Дневной лимит (00:00 МСК): <span className="font-bold text-slate-900 dark:text-white">{sub.dailyUsageCount || 0}/{sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30}</span>
             </span>
 
             <Link
-              href="/dashboard/billing"
+              href="/pricing"
               className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-all"
             >
               Управление тарифом
@@ -643,78 +665,90 @@ export default function DashboardPage() {
             {activeTab === 'overview' && (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
-                    <div className="text-xs text-slate-400 font-medium mb-1">Обработано сообщений</div>
-                    <div className="text-2xl font-black text-white">1,482</div>
-                    <div className="text-[10px] text-emerald-400 mt-1 font-semibold">↑ +14% на этой неделе</div>
+                  <div className={`p-4 rounded-2xl border ${
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                  }`}>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Обработано сообщений</div>
+                    <div className="text-2xl font-black text-slate-900 dark:text-white">1,482</div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">↑ +14% на этой неделе</div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
-                    <div className="text-xs text-slate-400 font-medium mb-1">Автоматизация ИИ</div>
-                    <div className="text-2xl font-black text-emerald-400">84.2%</div>
-                    <div className="text-[10px] text-slate-400 mt-1 font-semibold">Без участия человека</div>
+                  <div className={`p-4 rounded-2xl border ${
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                  }`}>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Автоматизация ИИ</div>
+                    <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">84.2%</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-semibold">Без участия человека</div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
-                    <div className="text-xs text-slate-400 font-medium mb-1">Среднее время отклика</div>
-                    <div className="text-2xl font-black text-blue-400">0.6s</div>
-                    <div className="text-[10px] text-emerald-400 mt-1 font-semibold">Мгновенные ответы</div>
+                  <div className={`p-4 rounded-2xl border ${
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                  }`}>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Среднее время отклика</div>
+                    <div className="text-2xl font-black text-blue-600 dark:text-blue-400">0.6s</div>
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">Мгновенные ответы</div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800">
-                    <div className="text-xs text-slate-400 font-medium mb-1">Оценка клиентов</div>
-                    <div className="text-2xl font-black text-amber-400">98.4%</div>
-                    <div className="text-[10px] text-slate-400 mt-1 font-semibold">Высокая точность</div>
+                  <div className={`p-4 rounded-2xl border ${
+                    themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                  }`}>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">Оценка клиентов</div>
+                    <div className="text-2xl font-black text-amber-500">98.4%</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-semibold">Высокая точность</div>
                   </div>
                 </div>
 
-                <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-4">
-                  <h3 className="font-bold text-white text-base">Информация о текущем проекте</h3>
+                <div className={`p-6 rounded-2xl border space-y-4 ${
+                  themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+                }`}>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">Информация о текущем проекте</h3>
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <span className="text-slate-400">Название:</span>
-                      <div className="font-bold text-white text-sm">{activeProject?.name}</div>
+                      <span className="text-slate-500 dark:text-slate-400">Название:</span>
+                      <div className="font-bold text-slate-900 dark:text-white text-sm">{activeProject?.name}</div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Категория:</span>
-                      <div className="font-bold text-white text-sm">{activeProject?.category}</div>
+                      <span className="text-slate-500 dark:text-slate-400">Категория:</span>
+                      <div className="font-bold text-slate-900 dark:text-white text-sm">{activeProject?.category}</div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Идентификатор Bot ID:</span>
-                      <div className="font-mono text-emerald-400 font-bold text-sm">{activeProject?.botId}</div>
+                      <span className="text-slate-500 dark:text-slate-400">Идентификатор Bot ID:</span>
+                      <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">{activeProject?.botId}</div>
                     </div>
                     <div>
-                      <span className="text-slate-400">Канал оператора:</span>
-                      <div className="font-bold text-blue-400 text-sm">{operatorType.toUpperCase()}: {operatorDest}</div>
+                      <span className="text-slate-500 dark:text-slate-400">Подключенные каналы оператора:</span>
+                      <div className="font-bold text-blue-600 dark:text-blue-400 text-sm">Telegram, WhatsApp, Email</div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* TAB: CONNECT & EMBED INSTRUCTION (WITH FULL VISUAL PLATFORM STEP-BY-STEP GUIDES) */}
+            {/* TAB: CONNECT & EMBED INSTRUCTION (WITH CUSTOM SITE / DEVELOPER GUIDE) */}
             {activeTab === 'embed' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                     <Code2 className="w-5 h-5 text-blue-500" />
-                    Подключение и встраиваемый код на ваш сайт
+                    Подключение и интеграция скрипта виджета
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Подключите ИИ-консультант за 1 минуту: скопируйте персональную строчку кода и следуйте пошаговому гайду ниже.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Подключите ИИ-консультанта за 1 минуту: скопируйте персональную строчку кода или отправьте программисту.
                   </p>
                 </div>
 
                 {/* Code Snippet Box */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
                     <span>1. Ваш персональный код вставки:</span>
-                    <span className="text-emerald-400 text-[11px]">Ключ {activeProject?.botId} привязан</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 text-[11px]">Ключ {activeProject?.botId} привязан</span>
                   </div>
 
                   <div className="relative">
-                    <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-zinc-800 overflow-x-auto leading-relaxed shadow-lg">
+                    <pre className="bg-slate-950 text-emerald-400 p-5 rounded-2xl text-xs font-mono border border-slate-800 overflow-x-auto leading-relaxed shadow-lg">
                       <code>{generateEmbedScript(activeProject?.botId || 'bot_proj_98231a')}</code>
                     </pre>
                     
@@ -737,37 +771,52 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* 3-Step Visual Quick Process Banner */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-zinc-800/40 rounded-xl border border-zinc-800 text-xs">
-                  <div className="space-y-1">
-                    <div className="font-bold text-blue-400">Шаг 1</div>
-                    <p className="text-slate-300 text-[11px]">Скопируйте строку кода выше кнопкой "Скопировать".</p>
+                {/* Developer Email Instructions Template */}
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold text-xs text-blue-900 dark:text-blue-300 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-blue-600" />
+                      <span>Передать задачу веб-разработчику / программисту</span>
+                    </div>
+                    <button
+                      onClick={handleCopyDevEmail}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-xs"
+                    >
+                      {devEmailCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{devEmailCopied ? 'Инструкция скопирована!' : 'Скопировать письмо разработчику'}</span>
+                    </button>
                   </div>
-                  <div className="space-y-1">
-                    <div className="font-bold text-purple-400">Шаг 2</div>
-                    <p className="text-slate-300 text-[11px]">Выберите вашу платформу сайта в меню ниже.</p>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-bold text-emerald-400">Шаг 3</div>
-                    <p className="text-slate-300 text-[11px]">Вставьте перед &lt;/body&gt; и опубликуйте страницу!</p>
-                  </div>
+                  <p className="text-xs text-blue-800 dark:text-blue-200/80 leading-relaxed">
+                    Если сайт делал ваш верстальщик или агентство, просто скопируйте эту готовую текстовую инструкцию и отправьте им в Telegram или на Email!
+                  </p>
                 </div>
 
                 {/* Detailed Platform Installation Tabs */}
-                <div className="space-y-4 pt-2 border-t border-zinc-800">
-                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                    <FileCode2 className="w-4 h-4 text-blue-400" />
-                    2. Пошаговые инструкции вставки для вашей платформы:
+                <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-zinc-800">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileCode2 className="w-4 h-4 text-blue-500" />
+                    2. Пошаговые инструкции установки по типам сайтов:
                   </h3>
 
                   {/* Tabs Selector */}
-                  <div className="flex border-b border-zinc-800 gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+                  <div className="flex border-b border-slate-200 dark:border-zinc-800 gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+                    <button
+                      onClick={() => setPlatformTab('custom')}
+                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                        platformTab === 'custom'
+                          ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                          : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      ⚡ Собственный сайт (HTML/PHP/React/Bitrix)
+                    </button>
+
                     <button
                       onClick={() => setPlatformTab('tilda')}
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'tilda'
-                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-                          : 'border-transparent text-slate-400 hover:text-white'
+                          ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                          : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       🔷 Tilda Publishing
@@ -777,8 +826,8 @@ export default function DashboardPage() {
                       onClick={() => setPlatformTab('wordpress')}
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'wordpress'
-                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-                          : 'border-transparent text-slate-400 hover:text-white'
+                          ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                          : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       🟢 WordPress
@@ -788,92 +837,52 @@ export default function DashboardPage() {
                       onClick={() => setPlatformTab('shopify')}
                       className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
                         platformTab === 'shopify'
-                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-                          : 'border-transparent text-slate-400 hover:text-white'
+                          ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+                          : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       🛍️ Shopify / Webflow
                     </button>
-
-                    <button
-                      onClick={() => setPlatformTab('html')}
-                      className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
-                        platformTab === 'html'
-                          ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-                          : 'border-transparent text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      ⚡ HTML / Custom Code
-                    </button>
                   </div>
 
                   {/* Platform Content */}
-                  <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 text-xs text-slate-300 space-y-2.5">
+                  <div className={`p-4 rounded-xl border text-xs space-y-2.5 ${
+                    themeMode === 'dark' ? 'bg-zinc-950 border-zinc-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    {platformTab === 'custom' && (
+                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
+                        <li>Скопируйте 1-строчный код виджета с помощью синей кнопки <b>«Скопировать код виджета»</b> выше.</li>
+                        <li>Откройте самый главный файл шаблона вашего сайта (например <code>index.html</code>, <code>index.php</code>, <code>header.php</code> или файл разметки в React/Next.js/Bitrix).</li>
+                        <li>Найдите в коде тег <code>&lt;/body&gt;</code> в самом низу страницы.</li>
+                        <li>Вставьте скопированную строку прямо перед этим тегом <code>&lt;/body&gt;</code> и сохраните файл.</li>
+                        <li>Готово! Обновите ваш сайт — стильный чат виджета появится в правом нижнем углу.</li>
+                      </ol>
+                    )}
+
                     {platformTab === 'tilda' && (
                       <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>Скопируйте код выше с помощью синей кнопки <b>«Скопировать код виджета»</b>.</li>
-                        <li>Перейдите в редактирование вашего сайта на <b>Tilda</b>.</li>
-                        <li>Нажмите <b>«+ Добавить блок»</b> → откройте раздел <b>«Другое»</b> → добавьте блок <b>T123 «HTML-код»</b> (рекомендуется в подвале/футере).</li>
-                        <li>Нажмите кнопку <b>«Контент»</b> у блока T123, вставьте скопированный код и нажмите <b>«Сохранить и закрыть»</b>.</li>
-                        <li>Нажмите <b>«Опубликовать все страницы»</b>. Готово! Виджет появится в правом нижнем углу сайта.</li>
+                        <li>Скопируйте код выше.</li>
+                        <li>В редакторе Tilda откройте <b>«+ Добавить блок»</b> → раздел <b>«Другое»</b> → добавьте блок <b>T123 «HTML-код»</b>.</li>
+                        <li>Нажмите кнопку <b>«Контент»</b> у блока T123, вставьте код и нажмите <b>«Сохранить и закрыть»</b>.</li>
+                        <li>Нажмите <b>«Опубликовать все страницы»</b>.</li>
                       </ol>
                     )}
 
                     {platformTab === 'wordpress' && (
                       <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
                         <li>Зайдите в админ-панель вашего сайта на <b>WordPress</b>.</li>
-                        <li>Перейдите в раздел <b>Плагины</b> → <b>Добавить новый</b> и установите бесплатный плагин <i>«Header and Footer Scripts»</i>.</li>
-                        <li>Вставьте скопированный код в поле <b>Scripts in Footer</b>.</li>
-                        <li>Нажмите кнопку <b>Сохранить изменения</b>.</li>
+                        <li>Перейдите в <b>Плагины</b> → <b>Добавить новый</b> и установите плагин <i>«Header and Footer Scripts»</i>.</li>
+                        <li>Вставьте скопированный код в поле <b>Scripts in Footer</b> и нажмите <b>Сохранить</b>.</li>
                       </ol>
                     )}
 
                     {platformTab === 'shopify' && (
                       <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>В панели <b>Shopify / Webflow</b> откройте <b>Online Store</b> → <b>Themes</b> → <b>Edit code</b>.</li>
-                        <li>Найдите файл шаблона <code>theme.liquid</code> (или раздел Custom Code в Webflow).</li>
-                        <li>Вставьте скопированный код перед тегом <code>&lt;/body&gt;</code>.</li>
-                        <li>Нажмите <b>Save</b>.</li>
-                      </ol>
-                    )}
-
-                    {platformTab === 'html' && (
-                      <ol className="list-decimal pl-4 space-y-2 font-normal leading-relaxed">
-                        <li>Откройте исходный HTML-файл вашей страницы.</li>
-                        <li>Вставьте скопированную строку прямо перед закрывающим тегом <code>&lt;/body&gt;</code>.</li>
-                        <li>Сохраните файл и обновите ваш сайт на хостинге.</li>
+                        <li>Откройте <b>Online Store</b> → <b>Themes</b> → <b>Edit code</b> → файл <code>theme.liquid</code>.</li>
+                        <li>Вставьте скопированный код перед тегом <code>&lt;/body&gt;</code> и нажмите <b>Save</b>.</li>
                       </ol>
                     )}
                   </div>
-                </div>
-
-                {/* Connection Validation Tool */}
-                <div className="bg-blue-950/40 p-4 rounded-xl border border-blue-800/50 text-xs space-y-3">
-                  <div className="font-bold text-blue-300 flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-blue-400" />
-                    Инструмент проверки связи на вашем сайте
-                  </div>
-                  <form onSubmit={handleTestIntegration} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={testDomain}
-                      onChange={(e) => setTestDomain(e.target.value)}
-                      placeholder="https://my-store.ru"
-                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-white"
-                    />
-                    <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs"
-                    >
-                      Проверить подключение
-                    </button>
-                  </form>
-                  {testResult && (
-                    <div className="p-2.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-lg font-semibold text-[11px] flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>{testResult}</span>
-                    </div>
-                  )}
                 </div>
 
               </div>
@@ -881,13 +890,15 @@ export default function DashboardPage() {
 
             {/* TAB: BOT SETTINGS */}
             {activeTab === 'bot_settings' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                     <Palette className="w-5 h-5 text-blue-500" />
                     Персонализация стиля и личности ИИ-Консультанта
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Настройте внешний вид, имя и системный тон общения.
                   </p>
                 </div>
@@ -899,7 +910,9 @@ export default function DashboardPage() {
                     type="text"
                     value={config.botName}
                     onChange={(e) => handleConfigChange('botName', e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-semibold ${
+                      themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
                   />
                 </div>
 
@@ -910,7 +923,9 @@ export default function DashboardPage() {
                     rows={3}
                     value={config.welcomeMessage}
                     onChange={(e) => handleConfigChange('welcomeMessage', e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs ${
+                      themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
                   />
                 </div>
 
@@ -929,11 +944,11 @@ export default function DashboardPage() {
                         className={`p-3 rounded-xl border text-left transition-all ${
                           config.toneOfVoice === tone.id
                             ? 'bg-blue-600 text-white border-blue-500'
-                            : 'bg-zinc-900 border-zinc-800 text-slate-300 hover:border-zinc-700'
+                            : themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
                         }`}
                       >
                         <div className="font-bold text-xs">{tone.label}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{tone.desc}</div>
+                        <div className="text-[10px] opacity-80 mt-0.5">{tone.desc}</div>
                       </button>
                     ))}
                   </div>
@@ -963,13 +978,15 @@ export default function DashboardPage() {
 
             {/* TAB: KNOWLEDGE BASE */}
             {activeTab === 'knowledge' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-blue-500" />
                     База Знаний (Knowledge Base)
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Введите данные для обучения ИИ клиентской поддержке.
                   </p>
                 </div>
@@ -981,21 +998,27 @@ export default function DashboardPage() {
                     rows={5}
                     value={config.knowledgeText}
                     onChange={(e) => handleConfigChange('knowledgeText', e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono leading-relaxed"
+                    className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono leading-relaxed ${
+                      themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
                   />
                 </div>
 
-                <div className="pt-4 border-t border-zinc-800 space-y-4">
+                <div className="pt-4 border-t border-slate-200 dark:border-zinc-800 space-y-4">
                   <h3 className="font-bold text-xs uppercase tracking-wider">Частые пары Вопрос-Ответ (FAQ)</h3>
 
-                  <form onSubmit={handleAddFAQ} className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/50 space-y-3">
+                  <form onSubmit={handleAddFAQ} className={`p-4 rounded-xl border space-y-3 ${
+                    themeMode === 'dark' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
                     <input
                       id="dash-faq-question-input"
                       type="text"
                       value={newQuestion}
                       onChange={(e) => setNewQuestion(e.target.value)}
                       placeholder="Вопрос..."
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
+                      className={`w-full border rounded-lg px-3 py-2 text-xs ${
+                        themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
                     />
                     <textarea
                       id="dash-faq-answer-input"
@@ -1003,7 +1026,9 @@ export default function DashboardPage() {
                       value={newAnswer}
                       onChange={(e) => setNewAnswer(e.target.value)}
                       placeholder="Ответ ИИ..."
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white"
+                      className={`w-full border rounded-lg px-3 py-2 text-xs ${
+                        themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
                     />
                     <button
                       id="dash-add-faq-btn"
@@ -1018,9 +1043,11 @@ export default function DashboardPage() {
 
                   <div className="space-y-3">
                     {config.faqItems?.map((item) => (
-                      <div key={item.id} className="p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/80 space-y-1 relative">
+                      <div key={item.id} className={`p-3.5 rounded-xl border space-y-1 relative ${
+                        themeMode === 'dark' ? 'bg-zinc-900/80 border-zinc-800' : 'bg-white border-slate-200'
+                      }`}>
                         <div className="flex items-start justify-between">
-                          <div className="font-bold text-xs text-white flex items-center gap-1.5">
+                          <div className="font-bold text-xs flex items-center gap-1.5">
                             <HelpCircle className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                             <span>{item.question}</span>
                           </div>
@@ -1031,7 +1058,7 @@ export default function DashboardPage() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p className="text-xs text-slate-400 pl-5">{item.answer}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 pl-5">{item.answer}</p>
                       </div>
                     ))}
                   </div>
@@ -1040,87 +1067,155 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB: OPERATOR ROUTING */}
+            {/* TAB: OPERATOR ROUTING (4 INDEPENDENT CHANNELS) */}
             {activeTab === 'operator' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                     <Headphones className="w-5 h-5 text-blue-500" />
                     Маршрутизация перевода на живого оператора
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Укажите куда переводить клиентов при клике "Вызвать оператора".
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Заполните независимые контакты. При вызове оператора кликом клиент увидит все подключенные кнопки одновременно!
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: 'telegram', label: 'Telegram Бот / Чат', desc: '@support_bot' },
-                      { id: 'whatsapp', label: 'WhatsApp Business', desc: '+7 (900) 123-45-67' },
-                      { id: 'email', label: 'Support Email', desc: 'help@company.com' },
-                      { id: 'webhook', label: 'Webhook URL', desc: 'https://api.com/tickets' },
-                    ].map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setOperatorType(item.id as any);
-                          saveCurrentProjectConfig(config, item.id as any, operatorDest);
-                        }}
-                        className={`p-3 rounded-xl border text-left transition-all ${
-                          operatorType === item.id
-                            ? 'bg-blue-600 text-white border-blue-500'
-                            : 'bg-zinc-900 border-zinc-800 text-slate-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">{item.label}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{item.desc}</div>
-                      </button>
-                    ))}
-                  </div>
+                {/* Sub tabs for 4 independent channels */}
+                <div className="flex border-b border-slate-200 dark:border-zinc-800 gap-2 overflow-x-auto pb-1 text-xs font-semibold">
+                  <button
+                    onClick={() => setOpSubTab('telegram')}
+                    className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                      opSubTab === 'telegram' ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10' : 'border-transparent text-slate-500'
+                    }`}
+                  >
+                    💬 Telegram
+                  </button>
+                  <button
+                    onClick={() => setOpSubTab('whatsapp')}
+                    className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                      opSubTab === 'whatsapp' ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'border-transparent text-slate-500'
+                    }`}
+                  >
+                    💚 WhatsApp
+                  </button>
+                  <button
+                    onClick={() => setOpSubTab('email')}
+                    className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                      opSubTab === 'email' ? 'border-purple-600 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10' : 'border-transparent text-slate-500'
+                    }`}
+                  >
+                    ✉️ Support Email
+                  </button>
+                  <button
+                    onClick={() => setOpSubTab('custom')}
+                    className={`px-4 py-2 rounded-t-xl transition-all border-b-2 ${
+                      opSubTab === 'custom' ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10' : 'border-transparent text-slate-500'
+                    }`}
+                  >
+                    🌐 Другой способ / Ссылка
+                  </button>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-bold mb-1">Назначение (Юзернейм / Номер / Email)</label>
-                    <input
-                      type="text"
-                      value={operatorDest}
-                      onChange={(e) => {
-                        setOperatorDest(e.target.value);
-                        saveCurrentProjectConfig(config, operatorType, e.target.value);
-                      }}
-                      placeholder="@my_support_bot"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono"
-                    />
+                <div className="space-y-4">
+                  {opSubTab === 'telegram' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Telegram Юзернейм или Бот поддержки:</label>
+                      <input
+                        type="text"
+                        value={opTelegram}
+                        onChange={(e) => setOpTelegram(e.target.value)}
+                        placeholder="@support_store_bot"
+                        className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono ${
+                          themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                      <p className="text-[11px] text-slate-400">Формирует ссылку `https://t.me/имя`</p>
+                    </div>
+                  )}
+
+                  {opSubTab === 'whatsapp' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">WhatsApp Телефон поддержки:</label>
+                      <input
+                        type="text"
+                        value={opWhatsapp}
+                        onChange={(e) => setOpWhatsapp(e.target.value)}
+                        placeholder="+7 (900) 123-45-67"
+                        className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono ${
+                          themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                      <p className="text-[11px] text-slate-400">Формирует ссылку `https://wa.me/номер`</p>
+                    </div>
+                  )}
+
+                  {opSubTab === 'email' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Support Email адрес:</label>
+                      <input
+                        type="email"
+                        value={opEmail}
+                        onChange={(e) => setOpEmail(e.target.value)}
+                        placeholder="support@store.ru"
+                        className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono ${
+                          themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                      <p className="text-[11px] text-slate-400">Формирует почтовую ссылку `mailto:support@...`</p>
+                    </div>
+                  )}
+
+                  {opSubTab === 'custom' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">Своя ссылка или страница контактов:</label>
+                      <input
+                        type="text"
+                        value={opCustom}
+                        onChange={(e) => setOpCustom(e.target.value)}
+                        placeholder="https://store.ru/support"
+                        className={`w-full border rounded-xl px-3.5 py-2.5 text-xs font-mono ${
+                          themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                      <p className="text-[11px] text-slate-400">Любой произвольный URL вашего раздела контактов</p>
+                    </div>
+                  )}
+
+                  <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800/50 text-xs text-blue-900 dark:text-blue-200">
+                    <span className="font-bold">Все заведенные каналы активны!</span> Когда клиент запросит оператора, ИИ предоставит ему выбор между подключенными мессенджерами и почтой.
                   </div>
                 </div>
               </div>
             )}
 
-            {/* TAB: ANALYTICS & METRICS */}
+            {/* TAB: ANALYTICS */}
             {activeTab === 'analytics' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-blue-500" />
                     Аналитика и детальные метрики
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Отслеживайте нагрузку, скорость отклика и удовлетворенность клиентов.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-zinc-800/50 border border-zinc-700 space-y-1">
-                    <div className="text-xs text-slate-400 font-semibold">Конверсия ответов</div>
-                    <div className="text-2xl font-black text-emerald-400">92.4%</div>
-                    <div className="text-[10px] text-slate-400">Клиенты получили нужный ответ</div>
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 space-y-1">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Конверсия ответов</div>
+                    <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">92.4%</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">Клиенты получили нужный ответ</div>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-zinc-800/50 border border-zinc-700 space-y-1">
-                    <div className="text-xs text-slate-400 font-semibold">Перевод на оператора</div>
-                    <div className="text-2xl font-black text-amber-400">7.6%</div>
-                    <div className="text-[10px] text-slate-400">Меньше 8% требуют человека</div>
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 space-y-1">
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Перевод на оператора</div>
+                    <div className="text-2xl font-black text-amber-500">7.6%</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">Меньше 8% требуют человека</div>
                   </div>
                 </div>
               </div>
@@ -1128,45 +1223,47 @@ export default function DashboardPage() {
 
             {/* TAB: BILLING & TARIFFS */}
             {activeTab === 'billing' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-emerald-400" />
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-emerald-500" />
                     Управление подпиской и тарифом
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Дневные лимиты обновляются каждый день в 00:00 по Московскому времени.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-xl bg-zinc-800/50 border border-zinc-700">
-                    <div className="font-bold text-white text-sm">Starter Free</div>
-                    <div className="text-xl font-black text-white my-2">0 ₽</div>
-                    <p className="text-[10px] text-slate-400">30 ответов в месяц</p>
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                    <div className="font-bold text-slate-900 dark:text-white text-sm">Starter Free</div>
+                    <div className="text-xl font-black text-slate-900 dark:text-white my-2">0 ₽</div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">30 ответов в месяц</p>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-600/50">
-                    <div className="font-bold text-white text-sm flex items-center gap-1">
-                      <span>Pro Business</span>
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-600/50">
+                    <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1">
+                      <span>Pro Plan</span>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                     </div>
-                    <div className="text-xl font-black text-white my-2">1 890 ₽ <span className="text-[10px] font-normal text-slate-400">/ $19</span></div>
-                    <p className="text-[10px] text-emerald-400 font-bold">2 000 ответов в день (00:00 МСК)</p>
+                    <div className="text-xl font-black text-slate-900 dark:text-white my-2">1 890 ₽ <span className="text-[10px] font-normal text-slate-400">/ $19</span></div>
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">2 000 ответов в день (00:00 МСК)</p>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-purple-950/40 border border-purple-600/50">
-                    <div className="font-bold text-white text-sm flex items-center gap-1">
+                  <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-600/50">
+                    <div className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1">
                       <span>Max Plan</span>
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <Crown className="w-3.5 h-3.5 text-amber-500" />
                     </div>
-                    <div className="text-xl font-black text-white my-2">2 990 ₽ <span className="text-[10px] font-normal text-slate-400">/ $39.99</span></div>
-                    <p className="text-[10px] text-amber-400 font-bold">6 000 ответов в день (00:00 МСК)</p>
+                    <div className="text-xl font-black text-slate-900 dark:text-white my-2">2 990 ₽ <span className="text-[10px] font-normal text-slate-400">/ $39.99</span></div>
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">6 000 ответов в день (00:00 МСК)</p>
                   </div>
                 </div>
 
                 <Link
-                  href="/dashboard/billing"
+                  href="/pricing"
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2"
                 >
                   Перейти к выбору тарифа и оплате
@@ -1176,20 +1273,22 @@ export default function DashboardPage() {
 
             {/* TAB: AI SECURITY */}
             {activeTab === 'security' && (
-              <div className="p-6 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-6 animate-in fade-in duration-200">
+              <div className={`p-6 rounded-2xl border space-y-6 animate-in fade-in duration-200 ${
+                themeMode === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div>
-                  <h2 className="font-bold text-white text-base flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-purple-400" />
+                  <h2 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-purple-500" />
                     Безопасность ИИ и Защита Данных
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Система фильтрации Prompt Injection активна на уровне API.
                   </p>
                 </div>
 
-                <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-xs text-emerald-300 space-y-2">
+                <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 space-y-2">
                   <div className="font-bold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                     <span>Защита от утечки данных включена</span>
                   </div>
                   <p className="text-[11px] leading-relaxed">
@@ -1203,14 +1302,16 @@ export default function DashboardPage() {
 
           {/* Right Live Preview Widget Column (5 Cols) */}
           <div className="lg:col-span-5">
-            <div className="sticky top-4 bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800 flex flex-col items-center justify-center">
+            <div className={`sticky top-4 rounded-2xl p-5 border flex flex-col items-center justify-center ${
+              themeMode === 'dark' ? 'bg-zinc-900/60 border-zinc-800' : 'bg-slate-200/60 border-slate-300'
+            }`}>
               
               <div className="w-full flex items-center justify-between mb-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                   Интерактивный Виджет
                 </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold font-mono">
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold font-mono">
                   {activeProject?.botId}
                 </span>
               </div>
@@ -1296,10 +1397,10 @@ export default function DashboardPage() {
       {/* CREATE NEW PROJECT SURVEY MODAL */}
       {isAddProjectModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-slate-900 dark:text-white">
             <button
               onClick={() => setIsAddProjectModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1310,56 +1411,56 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h3 className="font-bold text-base">Создание нового проекта</h3>
-                <p className="text-xs text-slate-400">Каждый проект получает уникальный Bot ID и отдельный код</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Каждый проект получает уникальный Bot ID и отдельный код</p>
               </div>
             </div>
 
             <form onSubmit={handleCreateProjectSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-300 mb-1">Название проекта / сайта</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Название проекта / сайта</label>
                 <input
                   type="text"
                   required
                   value={newProjName}
                   onChange={(e) => setNewProjName(e.target.value)}
                   placeholder="Магазин Ключей #2"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-300 mb-1">Сфера деятельности / Тематика</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Сфера деятельности / Тематика</label>
                 <input
                   type="text"
                   value={newProjCategory}
                   onChange={(e) => setNewProjCategory(e.target.value)}
                   placeholder="Цифровые товары / Ритейл / Одежда"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-300 mb-1">Краткое описание проекта</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Краткое описание проекта</label>
                 <textarea
                   rows={2}
                   value={newProjDesc}
                   onChange={(e) => setNewProjDesc(e.target.value)}
                   placeholder="Опишите, чем занимается ваш сайт..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div className="pt-2 flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 font-bold text-xs rounded-xl shadow-md"
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 font-bold text-xs rounded-xl shadow-md text-white"
                 >
                   Создать проект
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAddProjectModalOpen(false)}
-                  className="px-4 py-3 bg-zinc-800 text-slate-300 font-semibold text-xs rounded-xl hover:bg-zinc-700"
+                  className="px-4 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-700"
                 >
                   Отмена
                 </button>
@@ -1369,13 +1470,101 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* DEDICATED SETTINGS MODAL */}
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 w-full max-w-lg rounded-2xl p-6 relative space-y-5 text-slate-900 dark:text-white">
+            <button
+              onClick={() => setIsSettingsModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                <Settings className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Глобальные настройки системы</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Управление языком, параметрами аккаунта и лимитами</p>
+              </div>
+            </div>
+
+            {/* Language Switcher Section */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/80 space-y-3">
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">Выбор языка интерфейса (Language):</label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleToggleLanguage('ru')}
+                  className={`flex-1 py-2.5 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    lang === 'ru'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span>🇷🇺 Русский (RU)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleLanguage('en')}
+                  className={`flex-1 py-2.5 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    lang === 'en'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span>🇬🇧 English (EN)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Plan Info & Daily Limit 00:00 MSK */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/80 text-xs space-y-2">
+              <div className="flex justify-between font-semibold">
+                <span>Текущий активный план:</span>
+                <span className="text-blue-600 dark:text-blue-400 font-bold">{sub.plan} Plan</span>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Правило дневных лимитов:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">Сброс каждый день в 00:00 по МСК</span>
+              </div>
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                <span>Использовано сегодня:</span>
+                <span className="text-slate-900 dark:text-white font-bold">{sub.dailyUsageCount || 0} / {sub.plan === 'Pro' ? 2000 : sub.plan === 'Max' ? 6000 : 30} сообщений</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Link
+                href="/pricing"
+                onClick={() => setIsSettingsModalOpen(false)}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl text-center shadow-xs"
+              >
+                Изменить или обновить план
+              </Link>
+
+              <button
+                onClick={() => setIsSettingsModalOpen(false)}
+                className="px-5 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-700"
+              >
+                Закрыть
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* USER PROFILE MODAL */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-white">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 w-full max-w-md rounded-2xl p-6 relative space-y-4 text-slate-900 dark:text-white">
             <button
               onClick={() => setIsProfileModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1386,26 +1575,26 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h3 className="font-bold text-base">{userName}</h3>
-                <p className="text-xs text-slate-400">{userEmail}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{userEmail}</p>
               </div>
             </div>
 
-            <div className="bg-zinc-800/60 p-4 rounded-xl border border-zinc-700/80 text-xs space-y-2">
+            <div className="bg-slate-50 dark:bg-zinc-800/60 p-4 rounded-xl border border-slate-200 dark:border-zinc-700/80 text-xs space-y-2">
               <div className="flex justify-between font-semibold">
                 <span>Текущий тариф:</span>
-                <span className="text-emerald-400">{sub.plan} Plan</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{sub.plan} Plan</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Дневной лимит (00:00 МСК):</span>
-                <span className="text-white font-bold">{sub.plan === 'Pro' ? '2 000' : sub.plan === 'Max' ? '6 000' : '30'} сообщений</span>
+                <span className="text-slate-900 dark:text-white font-bold">{sub.plan === 'Pro' ? '2 000' : sub.plan === 'Max' ? '6 000' : '30'} сообщений</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Всего проектов:</span>
-                <span className="text-white font-bold">{projects.length}</span>
+                <span className="text-slate-900 dark:text-white font-bold">{projects.length}</span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Язык системы:</span>
-                <span className="text-white uppercase font-bold">{lang}</span>
+                <span className="text-slate-900 dark:text-white uppercase font-bold">{lang}</span>
               </div>
             </div>
 

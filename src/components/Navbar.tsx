@@ -48,9 +48,9 @@ export default function Navbar() {
           <a href="#metrics" className="hover:text-blue-600 transition-colors">
             Результаты
           </a>
-          <a href="#pricing" className="hover:text-blue-600 transition-colors">
+          <Link href="/pricing" className="hover:text-blue-600 transition-colors">
             Тарифы
-          </a>
+          </Link>
         </nav>
 
         {/* Actions */}
