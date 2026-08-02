@@ -42,17 +42,6 @@ const GREETING_PATTERNS = [
   /^хеллоу$/i,
 ];
 
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  });
-}
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -308,7 +297,7 @@ export async function POST(req: Request) {
     // Smart sentence search inside Knowledge Base text
     const sentences = knowledgeBase.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 5);
     const messageTokens = lowerMessage.split(/\s+/).filter(t => t.length > 3);
-    
+
     if (messageTokens.length > 0) {
       const matchedSentence = sentences.find(sentence => {
         const lowerSent = sentence.toLowerCase();
